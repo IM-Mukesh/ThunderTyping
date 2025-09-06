@@ -37,6 +37,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* sensible default font fallbacks so layout and metrics are stable */
+  --font-geist-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial;
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono",
+    "Courier New", monospace;
 }
 
 .dark {
@@ -121,7 +127,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Use our variable-based font stack for consistent metrics */
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* Utility: subtle card background + thin border (use .bg-card where needed) */
+.bg-card {
+  background: var(--color-card, #0b0b0b);
+  color: var(--color-card-foreground, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.02); /* very thin line */
+  border-radius: 14px;
 }
 
 /* Custom scrolling animations for word display */
@@ -175,4 +193,13 @@
 .sr-only:focus {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* caret fallback color for actual inputs (single-color only) */
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: rgb(
+    34 211 238
+  ); /* cyan similar to ThunderTyping navbar gradient */
 }

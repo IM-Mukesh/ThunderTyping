@@ -1,18 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { NavBar } from "@/components/navbar";
-import { TypingTest } from "@/components/typing-test";
+import { useEffect, useState } from "react";
+import TypingTest from "@/components/typing/TypingTest";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useClientOnly } from "@/hooks/use-client-only";
 
 export default function ClientPage() {
   const isClient = useClientOnly();
-  const [storedDuration, setStoredDuration] = useLocalStorage(
+  const [storedDuration, setStoredDuration] = useLocalStorage<number>(
     "typing.duration",
     60
   );
-  const [currentDuration, setCurrentDuration] = useState(storedDuration);
+  const [currentDuration, setCurrentDuration] =
+    useState<number>(storedDuration);
+
+  // Keep currentDuration in sync when storedDuration loads/changes
+  useEffect(() => {
+    if (
+      typeof storedDuration === "number" &&
+      storedDuration !== currentDuration
+    ) {
+      setCurrentDuration(storedDuration);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storedDuration]);
 
   const handleDurationChange = (newDuration: number) => {
     setCurrentDuration(newDuration);
@@ -29,8 +40,8 @@ export default function ClientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black">
-      <NavBar />
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex items-center justify-center">
+      {/* NOTE: No NavBar here — content must match the generated image (clean centered card) */}
       <TypingTest
         duration={currentDuration}
         onDurationChange={handleDurationChange}
