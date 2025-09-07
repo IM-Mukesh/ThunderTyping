@@ -2,9 +2,8 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Clock } from "lucide-react";
 
-const PRESETS = [15, 30, 60, 12000]; // seconds
+const PRESETS = [15, 30, 60, 120]; // seconds
 
 interface TimeSelectorProps {
   duration: number; // seconds
@@ -13,14 +12,14 @@ interface TimeSelectorProps {
 }
 
 function formatTime(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 60) return `${seconds} s`;
   const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  return `${m} m`;
 }
 
 /**
- * Simplified TimeSelector:
+ * Updated TimeSelector with "Select Test Duration" title
+ * - Shows title above buttons
  * - Shows only four centered preset buttons (15s, 30s, 1m, 2m)
  * - Disabled while test is running/finished
  * - Highlights the currently selected preset
@@ -31,12 +30,15 @@ export default function TimeSelector({
   disabled = false,
 }: TimeSelectorProps) {
   return (
-    <div className="space-y-2 w-full">
-      <div className="flex items-center justify-center gap-2 text-neutral-300">
-        <Clock className="w-4 h-4 text-cyan-400" />
-        <h3 className="text-sm font-medium">Select Test Duration</h3>
-      </div>
+    <div className="space-y-3 w-full">
+      {/* Title */}
+      {/* <div className="text-center">
+        <h3 className="text-neutral-300 text-sm font-medium">
+          Select Test Duration
+        </h3>
+      </div> */}
 
+      {/* Preset buttons */}
       <div className="flex items-center justify-center gap-3">
         {PRESETS.map((p) => {
           const isActive = p === duration;
@@ -60,10 +62,6 @@ export default function TimeSelector({
             </button>
           );
         })}
-      </div>
-
-      <div className="text-center text-xs text-neutral-400">
-        Current: {formatTime(duration)}
       </div>
     </div>
   );

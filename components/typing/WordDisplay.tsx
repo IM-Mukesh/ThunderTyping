@@ -150,12 +150,6 @@ export function WordDisplay({
     if (index < currentWordIndex) {
       const typed = completedInputs[index] || "";
 
-      // Debug: If this word should be completed but has no typed input,
-      // it means there's an issue with the completedInputs array
-      console.log(
-        `Word ${index}: "${word}" | Typed: "${typed}" | CompletedInputs length: ${completedInputs.length}`
-      );
-
       return (
         <span
           key={index}
@@ -172,7 +166,7 @@ export function WordDisplay({
                 key={ci}
                 className={
                   isCorrect
-                    ? "text-white font-bold"
+                    ? "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text"
                     : typedCh !== undefined
                     ? "text-red-500"
                     : "text-neutral-400"
@@ -183,12 +177,21 @@ export function WordDisplay({
             );
           })}
 
+          {/* Extra characters that were typed beyond the word length */}
           {typed.length > word.length &&
             typed
               .slice(word.length)
               .split("")
               .map((extra, ei) => (
-                <span key={"extra-" + ei} className="text-red-500">
+                <span
+                  key={"extra-" + ei}
+                  className="text-red-500 relative"
+                  style={{
+                    maxWidth: "20px",
+                    overflow: "hidden",
+                    display: "inline-block",
+                  }}
+                >
                   {extra}
                 </span>
               ))}
@@ -221,9 +224,9 @@ export function WordDisplay({
                   className={
                     typedCh !== undefined
                       ? isCorrect
-                        ? "text-white font-bold" // All correctly typed characters should be white and bold
-                        : "text-red-500" // Incorrect characters are red
-                      : "text-neutral-300" // Untyped characters are gray
+                        ? "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text"
+                        : "text-red-500"
+                      : "text-neutral-300"
                   }
                 >
                   {ch}
@@ -246,12 +249,22 @@ export function WordDisplay({
             />
           )}
 
+          {/* Extra characters beyond word length - with better overflow handling */}
           {currentInput.length > word.length &&
             currentInput
               .slice(word.length)
               .split("")
               .map((extra, ei) => (
-                <span key={"extra-cur-" + ei} className="text-red-500">
+                <span
+                  key={"extra-cur-" + ei}
+                  className="text-red-500 relative"
+                  style={{
+                    maxWidth: "15px",
+                    overflow: "hidden",
+                    display: "inline-block",
+                    fontSize: "0.9em",
+                  }}
+                >
                   {extra}
                 </span>
               ))}

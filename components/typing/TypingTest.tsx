@@ -82,6 +82,47 @@ export default function TypingTest({
     return () => window.removeEventListener("keydown", onWindowKey);
   }, [processKey, showModal]);
 
+  // Global Tab+Enter restart shortcut
+  useEffect(() => {
+    if (showModal) return;
+
+    let tabPressed = false;
+    let enterPressed = false;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        tabPressed = true;
+        e.preventDefault(); // Prevent default tab behavior
+      }
+      if (e.key === "Enter") {
+        enterPressed = true;
+      }
+
+      // If both are pressed, restart the test
+      if (tabPressed && enterPressed) {
+        e.preventDefault();
+        resetTest();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        tabPressed = false;
+      }
+      if (e.key === "Enter") {
+        enterPressed = false;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [resetTest, showModal]);
+
   const handleWrapperClick = () => {
     if (showModal) return;
     inputRef.current?.focus();
@@ -125,7 +166,7 @@ export default function TypingTest({
         </div>
 
         {/* Time selector */}
-        <div className="mt-2 flex items-center justify-center">
+        <div className=" flex items-center justify-center">
           <div className="h-[72px] w-full flex items-center justify-center">
             <TimeSelector
               duration={duration}
@@ -164,9 +205,20 @@ export default function TypingTest({
         <div className="mt-6 flex items-center justify-center">
           {!isStarted && (
             <div className="text-center text-neutral-400 text-sm">
-              Click anywhere to focus and press any key to start typing
+              Press any key to begin
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Tab+Enter hint - always visible at bottom of screen */}
+      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-10">
+        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-4 py-2 rounded-full">
+          <span className="font-mono text-slate-300">tab</span>
+          <span className="text-slate-500">+</span>
+          <span className="font-mono text-slate-300">enter</span>
+          <span className="text-slate-500">-</span>
+          <span className="text-slate-300">restart test</span>
         </div>
       </div>
 
