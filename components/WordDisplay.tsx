@@ -203,9 +203,7 @@ export function WordDisplay({
         >
           {word.split("").map((ch, ci) => {
             const typedCh = typed[ci];
-            const isCorrect =
-              typedCh !== undefined &&
-              typedCh.toLowerCase() === ch.toLowerCase();
+            const isCorrect = typedCh !== undefined && typedCh === ch;
             return (
               <span
                 key={ci}
@@ -255,9 +253,7 @@ export function WordDisplay({
         >
           {chars.map((ch, ci) => {
             const typedCh = typed[ci];
-            const isCorrect =
-              typedCh !== undefined &&
-              typedCh.toLowerCase() === ch.toLowerCase();
+            const isCorrect = typedCh !== undefined && typedCh === ch;
             const showCaret = mounted && ci === typed.length;
 
             return (

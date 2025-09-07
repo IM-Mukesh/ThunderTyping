@@ -458,8 +458,8 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
 
         // Check if this new character would be wrong
         const charIndex = currentInput.length;
-        const expectedChar = (currentWord[charIndex] ?? "").toLowerCase();
-        const isCorrect = key.toLowerCase() === expectedChar;
+        const expectedChar = currentWord[charIndex] ?? "";
+        const isCorrect = key === expectedChar; // Remove toLowerCase() for case-sensitive comparison
 
         // Strict limit: if we already have max wrong chars and this would be wrong, block it
         if (!isCorrect && wrongCharsInCurrentWord >= maxWrongChars) {
