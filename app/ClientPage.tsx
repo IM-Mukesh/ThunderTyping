@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import TypingTest from "@/components/typing/TypingTest";
+import TypingTest from "@/components/TypingTest";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { useClientOnly } from "@/hooks/use-client-only";
+import { useClientOnly } from "@/hooks/useClientOnly";
 
 export default function ClientPage() {
   const isClient = useClientOnly();

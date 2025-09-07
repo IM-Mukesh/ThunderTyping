@@ -1,7 +1,4 @@
-// src/components/typing/timer-display.tsx
 "use client";
-
-import React from "react";
 
 interface TimerDisplayProps {
   timeLeft: number;
@@ -21,9 +18,10 @@ function formatSmart(seconds: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function TimerDisplay({ timeLeft, isActive }: TimerDisplayProps) {
-  // Always render a fixed-height container (avoid layout shift).
-  // We show dimmed style when not active.
+export default function TimerDisplay({
+  timeLeft,
+  isActive,
+}: TimerDisplayProps) {
   const colorClass =
     timeLeft <= 10
       ? "text-red-400 animate-pulse"
