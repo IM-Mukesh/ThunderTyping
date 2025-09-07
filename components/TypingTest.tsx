@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useTypingEngine } from "@/hooks/useTypingEngine";
 import TimerDisplay from "./TimerDisplay";
 import TimeSelector from "./TimeSelector";
 import WordDisplay from "./WordDisplay";
-import ResultsModal from "./ResultModal";
+import ResultsDisplay from "./ResultsDisplay";
 
 interface TypingTestProps {
   duration: number;
@@ -33,9 +34,11 @@ export default function TypingTest({
     newTest,
   } = engine;
 
-  const [showModal, setShowModal] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const cleanupRef = useRef<boolean>(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     cleanupRef.current = false;
@@ -51,41 +54,36 @@ export default function TypingTest({
   }, []);
 
   useEffect(() => {
-    if (isFinished) setShowModal(true);
-  }, [isFinished]);
-
-  const handleCloseModal = useCallback(() => {
-    setShowModal(false);
-    setTimeout(() => {
-      if (!cleanupRef.current) {
-        inputRef.current?.focus();
-      }
-    }, 0);
-  }, []);
+    if (isFinished && !showResults) {
+      setIsScrolling(true);
+      setShowResults(true);
+      setIsScrolling(false);
+    }
+  }, [isFinished, showResults]);
 
   const handleRetry = useCallback(() => {
+    setShowResults(false);
     resetTest();
-    setShowModal(false);
     setTimeout(() => {
       if (!cleanupRef.current) {
         inputRef.current?.focus();
       }
-    }, 0);
+    }, 100);
   }, [resetTest]);
 
   const handleNewTest = useCallback(() => {
+    setShowResults(false);
     newTest();
-    setShowModal(false);
     setTimeout(() => {
       if (!cleanupRef.current) {
         inputRef.current?.focus();
       }
-    }, 0);
+    }, 100);
   }, [newTest]);
 
   const onWindowKey = useCallback(
     (e: KeyboardEvent) => {
-      if (showModal) return;
+      if (showResults || isScrolling) return;
       const active = document.activeElement as HTMLElement | null;
       if (
         active &&
@@ -98,7 +96,7 @@ export default function TypingTest({
       }
       processKey(e.key);
     },
-    [processKey, showModal]
+    [processKey, showResults, isScrolling]
   );
 
   // Global key listener forwarding to engine
@@ -108,7 +106,7 @@ export default function TypingTest({
   }, [onWindowKey]);
 
   useEffect(() => {
-    if (showModal) return;
+    if (isScrolling) return;
 
     let tabPressed = false;
     let enterPressed = false;
@@ -124,7 +122,11 @@ export default function TypingTest({
 
       if (tabPressed && enterPressed) {
         e.preventDefault();
-        resetTest();
+        if (showResults) {
+          handleRetry();
+        } else {
+          resetTest();
+        }
         tabPressed = false;
         enterPressed = false;
       }
@@ -146,12 +148,12 @@ export default function TypingTest({
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [resetTest, showModal]);
+  }, [resetTest, showResults, isScrolling, handleRetry]);
 
   const handleWrapperClick = useCallback(() => {
-    if (showModal) return;
+    if (showResults || isScrolling) return;
     inputRef.current?.focus();
-  }, [showModal]);
+  }, [showResults, isScrolling]);
 
   if (!words || words.length === 0) {
     return (
@@ -162,85 +164,142 @@ export default function TypingTest({
   }
 
   return (
-    <div className="w-full max-w-6xl px-6">
-      <div
-        className="mx-auto max-w-4xl p-10 rounded-2xl bg-neutral-900 border border-neutral-800/50 shadow-sm"
-        style={{ minHeight: 420 }}
-        onClick={handleWrapperClick}
+    <div className="w-full max-w-6xl px-6 space-y-8 relative overflow-hidden">
+      <motion.div
+        className="relative w-full"
+        animate={{
+          y: showResults ? "-100vh" : "0vh",
+        }}
+        transition={{
+          type: "spring",
+          stiffness: 80,
+          damping: 20,
+          duration: 1.2,
+        }}
       >
-        {/* Header / Title (centered) */}
-        <div className="w-full flex items-center justify-center">
-          <h1
-            className="text-4xl font-bold text-white"
-            style={{
-              background: "linear-gradient(90deg, #22d3ee, #60a5fa)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+        <AnimatePresence mode="wait">
+          {!showResults && (
+            <motion.div
+              key="typing-area"
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              ref={containerRef}
+              className="mx-auto max-w-4xl p-8 rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm"
+              onClick={handleWrapperClick}
+            >
+              {/* Header / Title (centered) */}
+              <div className="w-full flex items-center justify-center pt-8">
+                <h1
+                  className="text-4xl font-bold text-white"
+                  style={{
+                    background: "linear-gradient(90deg, #22d3ee, #60a5fa)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                >
+                  ThunderTyping
+                </h1>
+              </div>
+
+              {/* Timer */}
+              <div className="mt-6 flex items-center justify-center">
+                <TimerDisplay
+                  timeLeft={timeLeft}
+                  isActive={isStarted && !isFinished}
+                />
+              </div>
+
+              {/* Time selector */}
+              <div className="flex items-center justify-center">
+                <div className="h-[72px] w-full flex items-center justify-center">
+                  <TimeSelector
+                    duration={duration}
+                    onDurationChange={onDurationChange}
+                    disabled={isStarted || isFinished}
+                  />
+                </div>
+              </div>
+
+              {/* Word area */}
+              <div className="mt-6 w-full">
+                <WordDisplay
+                  words={words}
+                  currentWordIndex={currentWordIndex}
+                  currentInput={currentInput}
+                  completedInputs={completedInputs}
+                  visibleLines={3}
+                />
+              </div>
+
+              {/* Hidden input with improved accessibility */}
+              <input
+                ref={inputRef}
+                className="sr-only"
+                value={currentInput}
+                onChange={() => {}}
+                onKeyDown={handleInputKeyDown}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                aria-label="Typing input for speed test"
+                aria-describedby="typing-instructions"
+                role="textbox"
+              />
+
+              {/* Instructions with proper ID for accessibility */}
+              <div className="mt-6 pb-2 flex items-center justify-center">
+                <div
+                  id="typing-instructions"
+                  className={`text-center text-neutral-400 text-sm transition-opacity duration-300 ${
+                    isStarted ? "invisible" : "visible"
+                  }`}
+                >
+                  Press any key to begin typing test
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      <AnimatePresence>
+        {showResults && (
+          <motion.div
+            key="results-area"
+            initial={{ opacity: 0, y: "100vh" }}
+            animate={{ opacity: 1, y: "0vh" }}
+            exit={{ opacity: 0, y: "100vh" }}
+            transition={{
+              type: "spring",
+              stiffness: 80,
+              damping: 20,
+              duration: 1.2,
             }}
+            className="fixed inset-0 flex items-center justify-center bg-black/95 backdrop-blur-sm z-50"
           >
-            ThunderTyping
-          </h1>
-        </div>
-
-        {/* Timer */}
-        <div className="mt-6 flex items-center justify-center">
-          <TimerDisplay
-            timeLeft={timeLeft}
-            isActive={isStarted && !isFinished}
-          />
-        </div>
-
-        {/* Time selector */}
-        <div className=" flex items-center justify-center">
-          <div className="h-[72px] w-full flex items-center justify-center">
-            <TimeSelector
-              duration={duration}
-              onDurationChange={onDurationChange}
-              disabled={isStarted || isFinished}
-            />
-          </div>
-        </div>
-
-        {/* Word area */}
-        <div className="mt-4 w-full">
-          <WordDisplay
-            words={words}
-            currentWordIndex={currentWordIndex}
-            currentInput={currentInput}
-            completedInputs={completedInputs}
-            visibleLines={3}
-          />
-        </div>
-
-        {/* Hidden input with improved accessibility */}
-        <input
-          ref={inputRef}
-          className="sr-only"
-          value={currentInput}
-          onChange={() => {}}
-          onKeyDown={handleInputKeyDown}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          aria-label="Typing input for speed test"
-          aria-describedby="typing-instructions"
-          role="textbox"
-        />
-
-        {/* Instructions with proper ID for accessibility */}
-        <div className="mt-6 flex items-center justify-center">
-          <div
-            id="typing-instructions"
-            className={`text-center text-neutral-400 text-sm transition-opacity duration-300 ${
-              isStarted ? "invisible" : "visible"
-            }`}
-          >
-            Press any key to begin typing test
-          </div>
-        </div>
-      </div>
+            <div className="w-full max-w-4xl mx-auto px-6">
+              <ResultsDisplay
+                grossWpm={results.grossWpm}
+                netWpm={results.netWpm}
+                accuracy={results.accuracy}
+                correctChars={results.correctChars}
+                totalChars={results.totalChars}
+                correctWords={results.correctWords}
+                totalWords={results.totalWords}
+                totalKeystrokes={results.totalKeystrokes}
+                correctKeystrokes={results.correctKeystrokes}
+                backspaceCount={results.backspaceCount}
+                duration={duration}
+                onRetry={handleRetry}
+                onNewTest={handleNewTest}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Tab+Enter hint - always visible at bottom of screen */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-10">
@@ -249,25 +308,11 @@ export default function TypingTest({
           <span className="text-slate-500">+</span>
           <span className="font-mono text-slate-300">enter</span>
           <span className="text-slate-500">-</span>
-          <span className="text-slate-300">restart test</span>
+          <span className="text-slate-300">
+            {showResults ? "retry test" : "restart test"}
+          </span>
         </div>
       </div>
-
-      {/* Modal with updated props */}
-      <ResultsModal
-        open={showModal}
-        onClose={handleCloseModal}
-        onRetry={handleRetry}
-        onNewTest={handleNewTest}
-        grossWpm={results.grossWpm}
-        netWpm={results.netWpm}
-        accuracy={results.accuracy}
-        correctChars={results.correctChars}
-        totalChars={results.totalChars}
-        correctWords={results.correctWords}
-        totalWords={results.totalWords}
-        duration={duration}
-      />
     </div>
   );
 }

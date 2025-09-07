@@ -13,6 +13,8 @@ export interface KeystrokeEvent {
   correct: boolean;
   timestamp: number;
   isSpace: boolean; // Track spaces separately
+  wasBackspaced?: boolean; // Track if this character was later backspaced
+  originalPosition?: number; // Track original position in word
 }
 
 export interface UseTypingEngineState {
@@ -28,6 +30,7 @@ export interface UseTypingEngineState {
   currentInput: string;
   completedInputs: string[];
   keystrokes: KeystrokeEvent[];
+  allKeystrokes: KeystrokeEvent[]; // Track ALL keystrokes including backspaced ones
 }
 
 export interface UseTypingEngineResults {
@@ -38,6 +41,9 @@ export interface UseTypingEngineResults {
   totalChars: number;
   correctWords: number;
   totalWords: number;
+  totalKeystrokes: number;
+  correctKeystrokes: number;
+  backspaceCount: number;
 }
 
 export interface UseTypingEngineAPI extends UseTypingEngineState {
@@ -66,9 +72,11 @@ function isModifierKey(key: string) {
 
 /**
  * Calculate detailed typing statistics following standard rules
+ * Updated to properly account for corrections and backspaces
  */
 function calculateDetailedResults(
   keystrokes: KeystrokeEvent[],
+  allKeystrokes: KeystrokeEvent[],
   completedInputs: string[],
   words: string[],
   currentWordIndex: number,
@@ -77,7 +85,17 @@ function calculateDetailedResults(
   startTime: number | null,
   isFinished: boolean
 ): UseTypingEngineResults {
-  // Calculate total characters typed (including spaces)
+  const totalKeystrokes = allKeystrokes.filter(
+    (k) => !k.isSpace && k.char !== "Backspace"
+  ).length;
+  const correctKeystrokes = allKeystrokes.filter(
+    (k) => !k.isSpace && k.char !== "Backspace" && k.correct && !k.wasBackspaced
+  ).length;
+  const backspaceCount = allKeystrokes.filter(
+    (k) => k.char === "Backspace"
+  ).length;
+
+  // Calculate total characters typed (including spaces) - final state
   let totalCharsTyped = 0;
   let correctCharsTyped = 0;
 
@@ -130,9 +148,14 @@ function calculateDetailedResults(
     minutes = Math.max(elapsedMs / 60000, 1 / 60); // Minimum 1 second
   }
 
-  // Standard WPM calculations
-  const accuracy =
+  const keystrokeAccuracy =
+    totalKeystrokes > 0 ? correctKeystrokes / totalKeystrokes : 0;
+  const finalStateAccuracy =
     totalCharsTyped > 0 ? correctCharsTyped / totalCharsTyped : 0;
+
+  // Use the lower of the two for more accurate representation
+  const accuracy = Math.min(keystrokeAccuracy, finalStateAccuracy);
+
   const grossWpm = minutes > 0 ? Math.round(totalCharsTyped / 5 / minutes) : 0;
   const netWpm = Math.round(grossWpm * accuracy);
 
@@ -156,6 +179,9 @@ function calculateDetailedResults(
     totalChars: totalCharsTyped,
     correctWords,
     totalWords,
+    totalKeystrokes,
+    correctKeystrokes,
+    backspaceCount,
   };
 }
 
@@ -175,6 +201,7 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
   const [currentInput, setCurrentInput] = useState("");
   const [completedInputs, setCompletedInputs] = useState<string[]>([]);
   const [keystrokes, setKeystrokes] = useState<KeystrokeEvent[]>([]);
+  const [allKeystrokes, setAllKeystrokes] = useState<KeystrokeEvent[]>([]);
   const [mounted, setMounted] = useState(false);
   const [hasTypedInCurrentWord, setHasTypedInCurrentWord] = useState(false);
 
@@ -304,10 +331,14 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
     setHasTypedInCurrentWord(false);
 
     // Add space keystroke
-    setKeystrokes((prev) => [
-      ...prev,
-      { char: " ", correct: true, timestamp: Date.now(), isSpace: true },
-    ]);
+    const spaceKeystroke = {
+      char: " ",
+      correct: true,
+      timestamp: Date.now(),
+      isSpace: true,
+    };
+    setKeystrokes((prev) => [...prev, spaceKeystroke]);
+    setAllKeystrokes((prev) => [...prev, spaceKeystroke]);
   }, [currentInput, currentWordIndex, hasTypedInCurrentWord]);
 
   // --- Improved reset with proper cleanup ---
@@ -327,6 +358,7 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
     setCurrentInput("");
     setCompletedInputs([]);
     setKeystrokes([]);
+    setAllKeystrokes([]);
     setHasTypedInCurrentWord(false);
     setWords(generateWords(500));
   }, [duration]);
@@ -360,9 +392,35 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
       const currentWord = words[currentWordIndex];
       if (!currentWord) return;
 
-      // Backspace
       if (key === "Backspace") {
+        // Track backspace in all keystrokes
+        setAllKeystrokes((prev) => [
+          ...prev,
+          {
+            char: "Backspace",
+            correct: false,
+            timestamp: Date.now(),
+            isSpace: false,
+          },
+        ]);
+
         if (currentInput.length > 0) {
+          // Mark the last keystroke as backspaced
+          setAllKeystrokes((prev) => {
+            const newKeystrokes = [...prev];
+            // Find the last non-backspace keystroke and mark it as backspaced
+            for (let i = newKeystrokes.length - 1; i >= 0; i--) {
+              if (
+                newKeystrokes[i].char !== "Backspace" &&
+                !newKeystrokes[i].wasBackspaced
+              ) {
+                newKeystrokes[i] = { ...newKeystrokes[i], wasBackspaced: true };
+                break;
+              }
+            }
+            return newKeystrokes;
+          });
+
           setCurrentInput((prev) => prev.slice(0, -1));
           setKeystrokes((prev) => prev.slice(0, -1));
           if (currentInput.length === 1) {
@@ -385,26 +443,63 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
 
       // Regular printable character
       if (key.length === 1 && !/[\x00-\x1F]/.test(key)) {
+        // Count wrong characters in current input more accurately
+        let wrongCharsInCurrentWord = 0;
+        const maxWrongChars = 10;
+
+        // Count existing wrong characters
+        for (let i = 0; i < currentInput.length; i++) {
+          const expectedChar = (currentWord[i] ?? "").toLowerCase();
+          const typedChar = currentInput[i].toLowerCase();
+          if (typedChar !== expectedChar) {
+            wrongCharsInCurrentWord++;
+          }
+        }
+
+        // Check if this new character would be wrong
+        const charIndex = currentInput.length;
+        const expectedChar = (currentWord[charIndex] ?? "").toLowerCase();
+        const isCorrect = key.toLowerCase() === expectedChar;
+
+        // Strict limit: if we already have max wrong chars and this would be wrong, block it
+        if (!isCorrect && wrongCharsInCurrentWord >= maxWrongChars) {
+          console.log(
+            "[v0] Blocked character - already at limit:",
+            wrongCharsInCurrentWord
+          );
+          return;
+        }
+
+        // Also block if we're typing beyond the word length and already have wrong chars
+        if (
+          charIndex >= currentWord.length &&
+          wrongCharsInCurrentWord >= maxWrongChars
+        ) {
+          console.log(
+            "[v0] Blocked extra character - at word end with wrong chars:",
+            wrongCharsInCurrentWord
+          );
+          return;
+        }
+
         const newInput = currentInput + key;
+
         setCurrentInput(newInput);
 
         if (!hasTypedInCurrentWord) {
           setHasTypedInCurrentWord(true);
         }
 
-        const charIndex = newInput.length - 1;
-        const expectedChar = (currentWord[charIndex] ?? "").toLowerCase();
-        const isCorrect = key.toLowerCase() === expectedChar;
+        const keystroke = {
+          char: key,
+          correct: isCorrect,
+          timestamp: Date.now(),
+          isSpace: false,
+          originalPosition: charIndex,
+        };
 
-        setKeystrokes((prev) => [
-          ...prev,
-          {
-            char: key,
-            correct: isCorrect,
-            timestamp: Date.now(),
-            isSpace: false,
-          },
-        ]);
+        setKeystrokes((prev) => [...prev, keystroke]);
+        setAllKeystrokes((prev) => [...prev, keystroke]);
       }
     },
     [
@@ -440,6 +535,7 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
   const results: UseTypingEngineResults = useMemo(() => {
     return calculateDetailedResults(
       keystrokes,
+      allKeystrokes,
       completedInputs,
       words,
       currentWordIndex,
@@ -450,6 +546,7 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
     );
   }, [
     keystrokes,
+    allKeystrokes,
     completedInputs,
     words,
     currentWordIndex,
@@ -470,6 +567,7 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
     currentInput,
     completedInputs,
     keystrokes,
+    allKeystrokes,
 
     // computed
     results,

@@ -1,42 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export function useLocalStorage<T>(
-  key: string,
-  initialValue: T
-): [T, (value: T | ((val: T) => T)) => void] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === "undefined") {
-      return initialValue;
-    }
+export function useLocalStorage<T>(key: string, initial: T) {
+  const [value, setValue] = useState<T>(initial);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set client flag after mount
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Load from localStorage after client mount
+  useEffect(() => {
+    if (!isClient) return;
+
     try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      const raw = localStorage.getItem(key);
+      if (raw != null) {
+        const parsed = JSON.parse(raw);
+        setValue(parsed);
+      }
     } catch (error) {
       console.warn(`Failed to load localStorage key "${key}":`, error);
-      if (typeof window !== "undefined" && window.console) {
-        console.error(`Unable to load saved ${key}. Using default value.`);
-      }
-      return initialValue;
     }
-  });
+  }, [key, isClient]);
 
-  const setValue = (value: T | ((val: T) => T)) => {
+  // Save to localStorage on value changes (only on client)
+  useEffect(() => {
+    if (!isClient) return;
+
     try {
-      const valueToStore =
-        value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
-      }
+      localStorage.setItem(key, JSON.stringify(value));
     } catch (error) {
       console.warn(`Failed to save localStorage key "${key}":`, error);
-      if (typeof window !== "undefined" && window.console) {
-        console.error(`Unable to save ${key}. Changes may not persist.`);
-      }
     }
-  };
+  }, [key, value, isClient]);
 
-  return [storedValue, setValue];
+  return [value, setValue] as const;
 }

@@ -8,7 +8,7 @@ interface CaretProps {
 export default function Caret({ height = 24, width = 2 }: CaretProps) {
   return (
     <span
-      className="inline-block align-middle animate-pulse"
+      className="inline-block align-middle animate-caret"
       style={{
         width,
         height,
@@ -16,7 +16,7 @@ export default function Caret({ height = 24, width = 2 }: CaretProps) {
           "linear-gradient(90deg, rgb(34 211 238) 0%, rgb(59 130 246) 100%)",
         marginRight: 1,
       }}
-      aria-hidden="true"
+      aria-hidden
     />
   );
 }

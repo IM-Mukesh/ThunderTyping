@@ -355,10 +355,7 @@ export function initializeWordGenerator(seed?: number) {
   globalRandom = new SeededRandom(seed);
 }
 
-export function generateWords(
-  count: number,
-  useSeed: boolean = false
-): string[] {
+export function generateWords(count: number, useSeed = false): string[] {
   const words: string[] = [];
   const n = COMMON_WORDS.length;
 

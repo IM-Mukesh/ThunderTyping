@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import TypingTest from "@/components/TypingTest";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useClientOnly } from "@/hooks/useClientOnly";
 
 export default function ClientPage() {
