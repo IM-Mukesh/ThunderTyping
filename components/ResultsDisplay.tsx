@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "@/components/ui/button";
+import React from "react";
 
 interface ResultsDisplayProps {
   grossWpm: number;
@@ -17,7 +17,7 @@ interface ResultsDisplayProps {
   onNewTest: () => void;
 }
 
-export function ResultsDisplay({
+export default function ResultsDisplayFixed({
   grossWpm,
   netWpm,
   accuracy,
@@ -32,136 +32,190 @@ export function ResultsDisplay({
   onRetry,
   onNewTest,
 }: ResultsDisplayProps) {
-  // Compute incorrect characters and words
   const incorrectChars = Math.max(0, totalChars - correctChars);
-  const incorrectWords = Math.max(0, totalWords - correctWords);
+  const durationText =
+    duration >= 60
+      ? `${Math.floor(duration / 60)}m ${duration % 60}s`
+      : `${duration}s`;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-8 rounded-2xl bg-neutral-900 border border-neutral-800/50 shadow-lg">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2">Test Complete!</h2>
-        <p className="text-neutral-400">
-          Duration:{" "}
-          {duration >= 60
-            ? `${Math.floor(duration / 60)}m ${duration % 60}s`
-            : `${duration}s`}
-        </p>
-      </div>
-
-      {/* Primary metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="rounded-xl bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 p-6 text-center">
-          <div className="text-sm text-cyan-300 mb-2">Net WPM</div>
-          <div className="text-4xl font-mono font-bold text-cyan-400 mb-2">
-            {netWpm}
+    <div className="w-full min-h-[420px] flex items-center justify-center p-6">
+      <div className="relative max-w-[1100px] w-full">
+        {/* Outer panel with 1px border */}
+        <div
+          className="relative rounded-2xl bg-neutral-900/85"
+          style={{
+            border: "1px solid rgba(120,120,125,0.12)",
+            boxShadow:
+              "0 8px 36px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02)",
+            padding: "40px 48px",
+            zIndex: 5,
+          }}
+        >
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-semibold text-white leading-tight">
+              Results
+            </h2>
+            <p className="text-sm text-neutral-400 mt-2">
+              Duration: {durationText}
+            </p>
           </div>
-          <div className="text-xs text-neutral-400">Gross: {grossWpm} WPM</div>
-        </div>
 
-        <div className="rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 p-6 text-center">
-          <div className="text-sm text-green-300 mb-2">Accuracy</div>
-          <div className="text-4xl font-mono font-bold text-green-400 mb-2">
-            {Math.round(accuracy * 100)}%
-          </div>
-          <div className="text-xs text-neutral-400">
-            {correctKeystrokes}/{totalKeystrokes} keystrokes
-          </div>
-        </div>
+          {/* Primary metrics - only these three cards now */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+            {/* Net WPM */}
+            <div
+              className="group relative cursor-pointer rounded-xl p-6 bg-neutral-800/50 border border-neutral-700/30"
+              style={{ minHeight: 130 }}
+            >
+              <div className="text-sm text-neutral-300 mb-2 uppercase tracking-wider">
+                Net WPM
+              </div>
+              <div className="text-4xl font-mono font-bold text-cyan-400 mb-2">
+                {netWpm}
+              </div>
+              <div className="text-xs text-neutral-500">
+                Gross: {grossWpm} WPM
+              </div>
 
-        <div className="rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 p-6 text-center">
-          <div className="text-sm text-purple-300 mb-2">Characters</div>
-          <div className="text-2xl font-mono font-semibold">
-            <div className="text-green-400">{correctChars} correct</div>
-            <div className="text-red-400">{incorrectChars} incorrect</div>
-          </div>
-        </div>
-      </div>
+              {/* hover tooltip */}
+              <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-180 absolute -top-14 left-1/2 transform -translate-x-1/2">
+                <div className="bg-black/90 text-white text-xs font-mono px-3 py-2 rounded-md shadow-md">
+                  <div>{netWpm} net</div>
+                  <div className="mt-1 text-neutral-400 text-[11px]">
+                    Gross {grossWpm} WPM
+                  </div>
+                </div>
+              </div>
+            </div>
 
-      {/* Detailed statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white border-b border-neutral-700 pb-2">
-            Character Stats
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Total characters</span>
-              <span className="font-mono text-white">{totalChars}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Correct characters</span>
-              <span className="font-mono text-green-400">{correctChars}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Incorrect characters</span>
-              <span className="font-mono text-red-400">{incorrectChars}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Backspaces used</span>
-              <span className="font-mono text-yellow-400">
-                {backspaceCount}
-              </span>
-            </div>
-          </div>
-        </div>
+            {/* Accuracy */}
+            <div
+              className="group relative cursor-pointer rounded-xl p-6 bg-neutral-800/50 border border-neutral-700/30"
+              style={{ minHeight: 130 }}
+            >
+              <div className="text-sm text-neutral-300 mb-2 uppercase tracking-wider">
+                Accuracy
+              </div>
+              <div className="text-4xl font-mono font-bold text-emerald-300 mb-2">
+                {Math.round(accuracy * 100)}%
+              </div>
+              <div className="text-xs text-neutral-500">
+                {correctKeystrokes}/{totalKeystrokes} keystrokes
+              </div>
 
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white border-b border-neutral-700 pb-2">
-            Word Stats
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Words completed</span>
-              <span className="font-mono text-white">{totalWords}</span>
+              <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-180 absolute -top-14 left-1/2 transform -translate-x-1/2">
+                <div className="bg-black/90 text-white text-xs font-mono px-3 py-2 rounded-md shadow-md">
+                  <div>{(accuracy * 100).toFixed(2)}% accurate</div>
+                  <div className="mt-1 text-neutral-400 text-[11px]">
+                    {correctKeystrokes} correct / {totalKeystrokes}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Correct words</span>
-              <span className="font-mono text-green-400">{correctWords}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Incorrect words</span>
-              <span className="font-mono text-red-400">{incorrectWords}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-neutral-400">Word accuracy</span>
-              <span className="font-mono text-cyan-400">
+
+            {/* Characters */}
+            <div
+              className="group relative cursor-pointer rounded-xl p-6 bg-neutral-800/50 border border-neutral-700/30"
+              style={{ minHeight: 130 }}
+            >
+              <div className="text-sm text-neutral-300 mb-2 uppercase tracking-wider">
+                Characters
+              </div>
+
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-emerald-300">
+                    ✓
+                  </div>
+                  <div className="font-mono text-white text-lg">
+                    {correctChars}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-rose-400">
+                    ✕
+                  </div>
+                  <div className="font-mono text-neutral-300 text-lg">
+                    {incorrectChars}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-xs text-neutral-500 mt-3">
+                Word accuracy:{" "}
                 {totalWords > 0
                   ? Math.round((correctWords / totalWords) * 100)
                   : 0}
                 %
-              </span>
+              </div>
+
+              <div className="pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-180 absolute -top-14 left-1/2 transform -translate-x-1/2">
+                <div className="bg-black/90 text-white text-xs font-mono px-3 py-2 rounded-md shadow-md">
+                  <div>{correctChars} correct</div>
+                  <div className="mt-1 text-neutral-400 text-[11px]">
+                    {incorrectChars} incorrect
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* single refresh icon action */}
+          <button
+            aria-label="Retry test"
+            onClick={() => onRetry()}
+            title="Restart test"
+            className="absolute cursor-pointer right-6 bottom-6 w-12 h-12 rounded-full bg-neutral-900/70 border border-neutral-700/30 flex items-center justify-center shadow-md hover:scale-105 transition-transform"
+            style={{ zIndex: 10 }}
+          >
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="text-cyan-400"
+            >
+              <path
+                d="M21 12a9 9 0 10-8.94 9"
+                stroke="#52C7FF"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M21 3v6h-6"
+                stroke="#52C7FF"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          {/* small keyboard tip */}
+          <div className="text-center mt-6">
+            <div className="text-xs text-neutral-500">
+              Tip: Press <span className="font-mono text-neutral-400">Tab</span>{" "}
+              + <span className="font-mono text-neutral-400">Enter</span> to
+              retry quickly
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Action buttons */}
-      <div className="flex gap-4 justify-center">
-        <Button
-          variant="outline"
-          onClick={onRetry}
-          className="px-8 py-2 border-neutral-600 hover:border-neutral-500 text-neutral-300 hover:text-white bg-transparent"
-        >
-          Retry Same Test
-        </Button>
-        <Button
-          onClick={onNewTest}
-          className="px-8 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-semibold"
-        >
-          New Test
-        </Button>
-      </div>
-
-      {/* Keyboard shortcut hint */}
-      <div className="text-center mt-6">
-        <div className="text-xs text-neutral-500">
-          Tip: Press <span className="font-mono text-neutral-400">Tab</span> +{" "}
-          <span className="font-mono text-neutral-400">Enter</span> together to
-          retry quickly
-        </div>
+        {/* subtle outer border glow (keeps consistent UI separation) */}
+        <div
+          aria-hidden
+          className="absolute inset-0 rounded-2xl pointer-events-none"
+          style={{
+            border: "1px solid rgba(38,198,218,0.04)",
+            boxShadow: "0 10px 40px rgba(2,6,23,0.6)",
+            zIndex: 1,
+          }}
+        />
       </div>
     </div>
   );
 }
-
-export default ResultsDisplay;
