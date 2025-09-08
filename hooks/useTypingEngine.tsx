@@ -1,42 +1,23 @@
 "use client";
 
 import type React from "react";
-
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { generateWords } from "@/lib/word-generator";
 
-/**
- * Enhanced keystroke event that includes word boundary information
- */
+// Types remain the same
 export interface KeystrokeEvent {
   char: string;
   correct: boolean;
   timestamp: number;
-  isSpace: boolean; // Track spaces separately
-  wasBackspaced?: boolean; // Track if this character was later backspaced
-  originalPosition?: number; // Track original position in word
-}
-
-export interface UseTypingEngineState {
-  // status
-  isStarted: boolean;
-  isFinished: boolean;
-  timeLeft: number; // seconds remaining
-  startTime: number | null;
-
-  // words & input
-  words: string[];
-  currentWordIndex: number;
-  currentInput: string;
-  completedInputs: string[];
-  keystrokes: KeystrokeEvent[];
-  allKeystrokes: KeystrokeEvent[]; // Track ALL keystrokes including backspaced ones
+  isSpace: boolean;
+  wasBackspaced?: boolean;
+  originalPosition?: number;
 }
 
 export interface UseTypingEngineResults {
   grossWpm: number;
   netWpm: number;
-  accuracy: number; // 0..1
+  accuracy: number;
   correctChars: number;
   totalChars: number;
   correctWords: number;
@@ -44,6 +25,20 @@ export interface UseTypingEngineResults {
   totalKeystrokes: number;
   correctKeystrokes: number;
   backspaceCount: number;
+}
+
+export interface UseTypingEngineState {
+  isStarted: boolean;
+  isFinished: boolean;
+  timeLeft: number;
+  startTime: number | null;
+  words: string[];
+  currentWordIndex: number;
+  currentInput: string;
+  completedInputs: string[];
+  keystrokes: KeystrokeEvent[];
+  allKeystrokes: KeystrokeEvent[];
+  hasTypedInCurrentWord: boolean;
 }
 
 export interface UseTypingEngineAPI extends UseTypingEngineState {
@@ -55,26 +50,169 @@ export interface UseTypingEngineAPI extends UseTypingEngineState {
   setFinished: (val: boolean) => void;
 }
 
-/**
- * Returns true if the key is a "typing" key that should start the timer & test.
- */
-function isTypingStarterKey(key: string) {
-  if (key.length !== 1) return false;
-  if (key === " ") return false;
-  return true;
+// Action types for reducer
+type TypingAction =
+  | { type: "START_TEST"; timestamp: number }
+  | { type: "FINISH_TEST" }
+  | { type: "UPDATE_TIME"; timeLeft: number }
+  | {
+      type: "ADD_CHARACTER";
+      char: string;
+      isCorrect: boolean;
+      timestamp: number;
+    }
+  | { type: "BACKSPACE"; timestamp: number }
+  | { type: "COMMIT_WORD"; timestamp: number }
+  | { type: "RESET_TEST"; duration: number; words: string[] }
+  | { type: "GENERATE_MORE_WORDS"; newWords: string[] }
+  | { type: "TRIM_WORDS"; keepFrom: number };
+
+// Optimized reducer to batch state updates
+function typingReducer(
+  state: UseTypingEngineState,
+  action: TypingAction
+): UseTypingEngineState {
+  switch (action.type) {
+    case "START_TEST":
+      return {
+        ...state,
+        isStarted: true,
+        startTime: action.timestamp,
+      };
+
+    case "FINISH_TEST":
+      return {
+        ...state,
+        isFinished: true,
+        isStarted: false,
+      };
+
+    case "UPDATE_TIME":
+      return {
+        ...state,
+        timeLeft: action.timeLeft,
+      };
+
+    case "ADD_CHARACTER": {
+      const keystroke: KeystrokeEvent = {
+        char: action.char,
+        correct: action.isCorrect,
+        timestamp: action.timestamp,
+        isSpace: action.char === " ",
+        originalPosition: state.currentInput.length,
+      };
+
+      return {
+        ...state,
+        currentInput: state.currentInput + action.char,
+        keystrokes: [...state.keystrokes, keystroke],
+        allKeystrokes: [...state.allKeystrokes, keystroke],
+        hasTypedInCurrentWord: true,
+      };
+    }
+
+    case "BACKSPACE": {
+      if (state.currentInput.length === 0) return state;
+
+      const backspaceEvent: KeystrokeEvent = {
+        char: "Backspace",
+        correct: false,
+        timestamp: action.timestamp,
+        isSpace: false,
+      };
+
+      // Mark last keystroke as backspaced
+      const updatedAllKeystrokes = [...state.allKeystrokes, backspaceEvent];
+      for (let i = updatedAllKeystrokes.length - 2; i >= 0; i--) {
+        if (
+          updatedAllKeystrokes[i].char !== "Backspace" &&
+          !updatedAllKeystrokes[i].wasBackspaced
+        ) {
+          updatedAllKeystrokes[i] = {
+            ...updatedAllKeystrokes[i],
+            wasBackspaced: true,
+          };
+          break;
+        }
+      }
+
+      return {
+        ...state,
+        currentInput: state.currentInput.slice(0, -1),
+        keystrokes: state.keystrokes.slice(0, -1),
+        allKeystrokes: updatedAllKeystrokes,
+        hasTypedInCurrentWord: state.currentInput.length > 1,
+      };
+    }
+
+    case "COMMIT_WORD": {
+      if (!state.hasTypedInCurrentWord) return state;
+
+      const updatedInputs = [...state.completedInputs];
+      while (updatedInputs.length <= state.currentWordIndex) {
+        updatedInputs.push("");
+      }
+      updatedInputs[state.currentWordIndex] = state.currentInput;
+
+      const spaceKeystroke: KeystrokeEvent = {
+        char: " ",
+        correct: true,
+        timestamp: action.timestamp,
+        isSpace: true,
+      };
+
+      return {
+        ...state,
+        completedInputs: updatedInputs,
+        currentWordIndex: state.currentWordIndex + 1,
+        currentInput: "",
+        keystrokes: [...state.keystrokes, spaceKeystroke],
+        allKeystrokes: [...state.allKeystrokes, spaceKeystroke],
+        hasTypedInCurrentWord: false,
+      };
+    }
+
+    case "RESET_TEST":
+      return {
+        isStarted: false,
+        isFinished: false,
+        timeLeft: action.duration,
+        startTime: null,
+        words: action.words,
+        currentWordIndex: 0,
+        currentInput: "",
+        completedInputs: [],
+        keystrokes: [],
+        allKeystrokes: [],
+        hasTypedInCurrentWord: false,
+      };
+
+    case "GENERATE_MORE_WORDS":
+      return {
+        ...state,
+        words: [...state.words, ...action.newWords],
+      };
+
+    case "TRIM_WORDS": {
+      const trimmed = state.words.slice(action.keepFrom);
+      const newIndex = Math.max(0, state.currentWordIndex - action.keepFrom);
+      const newInputs = state.completedInputs.slice(action.keepFrom);
+
+      return {
+        ...state,
+        words: trimmed,
+        currentWordIndex: newIndex,
+        completedInputs: newInputs,
+      };
+    }
+
+    default:
+      return state;
+  }
 }
 
-function isModifierKey(key: string) {
-  return (
-    key === "Shift" || key === "Alt" || key === "Control" || key === "Meta"
-  );
-}
-
-/**
- * Calculate detailed typing statistics following standard rules
- * Updated to properly account for corrections and backspaces
- */
-function calculateDetailedResults(
+// Memoized calculation function
+const calculateResults = (
   keystrokes: KeystrokeEvent[],
   allKeystrokes: KeystrokeEvent[],
   completedInputs: string[],
@@ -84,52 +222,49 @@ function calculateDetailedResults(
   duration: number,
   startTime: number | null,
   isFinished: boolean
-): UseTypingEngineResults {
+): UseTypingEngineResults => {
   const totalKeystrokes = allKeystrokes.filter(
     (k) => !k.isSpace && k.char !== "Backspace"
   ).length;
+
   const correctKeystrokes = allKeystrokes.filter(
     (k) => !k.isSpace && k.char !== "Backspace" && k.correct && !k.wasBackspaced
   ).length;
+
   const backspaceCount = allKeystrokes.filter(
     (k) => k.char === "Backspace"
   ).length;
 
-  // Calculate total characters typed (including spaces) - final state
   let totalCharsTyped = 0;
   let correctCharsTyped = 0;
 
-  // Count characters from completed words
+  // Calculate completed words
   for (let i = 0; i < Math.min(completedInputs.length, currentWordIndex); i++) {
     const typedWord = completedInputs[i] || "";
     const expectedWord = words[i] || "";
 
-    // Add typed word length
     totalCharsTyped += typedWord.length;
 
-    // Count correct characters in this word
     for (let j = 0; j < Math.min(typedWord.length, expectedWord.length); j++) {
       if (typedWord[j].toLowerCase() === expectedWord[j].toLowerCase()) {
         correctCharsTyped++;
       }
     }
 
-    // Add space after word (except for the last completed word if we're still typing)
     if (
       i < currentWordIndex - 1 ||
       (i === currentWordIndex - 1 && currentWordIndex < words.length)
     ) {
-      totalCharsTyped += 1; // space
-      correctCharsTyped += 1; // spaces are always "correct" when properly placed
+      totalCharsTyped += 1;
+      correctCharsTyped += 1;
     }
   }
 
-  // Add current word being typed
+  // Calculate current word
   if (currentWordIndex < words.length && currentInput.length > 0) {
     const expectedWord = words[currentWordIndex] || "";
     totalCharsTyped += currentInput.length;
 
-    // Count correct characters in current word
     for (
       let j = 0;
       j < Math.min(currentInput.length, expectedWord.length);
@@ -141,25 +276,23 @@ function calculateDetailedResults(
     }
   }
 
-  // Calculate time elapsed in minutes
+  // Calculate time
   let minutes = duration / 60;
   if (!isFinished && startTime) {
     const elapsedMs = Date.now() - startTime;
-    minutes = Math.max(elapsedMs / 60000, 1 / 60); // Minimum 1 second
+    minutes = Math.max(elapsedMs / 60000, 1 / 60);
   }
 
   const keystrokeAccuracy =
     totalKeystrokes > 0 ? correctKeystrokes / totalKeystrokes : 0;
   const finalStateAccuracy =
     totalCharsTyped > 0 ? correctCharsTyped / totalCharsTyped : 0;
-
-  // Use the lower of the two for more accurate representation
   const accuracy = Math.min(keystrokeAccuracy, finalStateAccuracy);
 
   const grossWpm = minutes > 0 ? Math.round(totalCharsTyped / 5 / minutes) : 0;
   const netWpm = Math.round(grossWpm * accuracy);
 
-  // Word-level accuracy
+  // Word accuracy
   let correctWords = 0;
   const totalWords = Math.min(completedInputs.length, currentWordIndex);
 
@@ -183,59 +316,66 @@ function calculateDetailedResults(
     correctKeystrokes,
     backspaceCount,
   };
-}
+};
 
-/**
- * Enhanced typing engine hook with accurate WPM/accuracy calculations
- */
+// Utility functions
+const isTypingStarterKey = (key: string): boolean => {
+  return key.length === 1 && key !== " ";
+};
+
+const isModifierKey = (key: string): boolean => {
+  return ["Shift", "Alt", "Control", "Meta"].includes(key);
+};
+
 export function useTypingEngine(duration: number): UseTypingEngineAPI {
-  // --- Status ---
-  const [isStarted, setIsStarted] = useState(false);
-  const [isFinished, setIsFinished] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(duration);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  // Initialize state with reducer
+  const [state, dispatch] = useReducer(typingReducer, {
+    isStarted: false,
+    isFinished: false,
+    timeLeft: duration,
+    startTime: null,
+    words: [],
+    currentWordIndex: 0,
+    currentInput: "",
+    completedInputs: [],
+    keystrokes: [],
+    allKeystrokes: [],
+    hasTypedInCurrentWord: false,
+  });
 
-  // --- Words & input ---
-  const [words, setWords] = useState<string[]>([]);
-  const [currentWordIndex, setCurrentWordIndex] = useState(0);
-  const [currentInput, setCurrentInput] = useState("");
-  const [completedInputs, setCompletedInputs] = useState<string[]>([]);
-  const [keystrokes, setKeystrokes] = useState<KeystrokeEvent[]>([]);
-  const [allKeystrokes, setAllKeystrokes] = useState<KeystrokeEvent[]>([]);
-  const [mounted, setMounted] = useState(false);
-  const [hasTypedInCurrentWord, setHasTypedInCurrentWord] = useState(false);
-
-  // --- Refs to avoid stale closures ---
+  // Refs for stable references
   const timerRef = useRef<number | null>(null);
   const isActiveRef = useRef<boolean>(false);
+  const durationRef = useRef(duration);
 
-  // --- Mount: initialize words ---
+  // Update duration ref when it changes
   useEffect(() => {
-    setWords(generateWords(500));
-    setMounted(true);
+    durationRef.current = duration;
+    if (!state.isStarted) {
+      dispatch({ type: "UPDATE_TIME", timeLeft: duration });
+    }
+  }, [duration, state.isStarted]);
+
+  // Track active state
+  useEffect(() => {
+    isActiveRef.current = state.isStarted && !state.isFinished;
+  }, [state.isStarted, state.isFinished]);
+
+  // Initialize words on mount
+  useEffect(() => {
+    const words = generateWords(500);
+    dispatch({ type: "RESET_TEST", duration, words });
   }, []);
 
-  // --- Track active state to prevent race conditions ---
+  // Timer effect - optimized with fewer dependencies
   useEffect(() => {
-    isActiveRef.current = isStarted && !isFinished;
-  }, [isStarted, isFinished]);
-
-  // Update timeLeft if duration changes while NOT started
-  useEffect(() => {
-    if (!isStarted) setTimeLeft(duration);
-  }, [duration, isStarted]);
-
-  // --- Improved timer with proper cleanup and race condition prevention ---
-  useEffect(() => {
-    // Clear any existing timer first
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
-    if (isStarted && !isFinished && startTime) {
+    if (state.isStarted && !state.isFinished && state.startTime) {
       timerRef.current = window.setInterval(() => {
-        // Check if component is still active to prevent stale updates
         if (!isActiveRef.current) {
           if (timerRef.current) {
             clearInterval(timerRef.current);
@@ -244,15 +384,13 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
           return;
         }
 
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const remaining = Math.max(0, duration - elapsed);
+        const elapsed = Math.floor((Date.now() - state.startTime!) / 1000);
+        const remaining = Math.max(0, durationRef.current - elapsed);
 
-        setTimeLeft(remaining);
+        dispatch({ type: "UPDATE_TIME", timeLeft: remaining });
 
         if (remaining <= 0) {
-          setIsFinished(true);
-          setIsStarted(false);
-          isActiveRef.current = false;
+          dispatch({ type: "FINISH_TEST" });
           if (timerRef.current) {
             clearInterval(timerRef.current);
             timerRef.current = null;
@@ -267,254 +405,88 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
         timerRef.current = null;
       }
     };
-  }, [isStarted, isFinished, startTime, duration]);
+  }, [state.isStarted, state.isFinished, state.startTime]);
 
-  // --- Infinite words generation / trimming ---
+  // Word generation effect - debounced
   useEffect(() => {
-    if (currentWordIndex > words.length - 100) {
-      const more = generateWords(500);
-      setWords((prev) => {
-        const keepFrom = Math.max(0, prev.length - 200);
-        const trimmed = prev.slice(keepFrom);
-        const merged = [...trimmed, ...more];
+    if (state.currentWordIndex > state.words.length - 100) {
+      const moreWords = generateWords(500);
+      dispatch({ type: "GENERATE_MORE_WORDS", newWords: moreWords });
 
-        if (keepFrom > 0) {
-          const adjust = keepFrom;
-          setCurrentWordIndex((curr) => {
-            const newIndex = Math.max(0, curr - adjust);
-            return newIndex;
-          });
-
-          setCompletedInputs((prevInputs) => {
-            const newInputs = prevInputs.slice(adjust);
-            return newInputs;
-          });
-        }
-        return merged;
-      });
-    }
-  }, [currentWordIndex, words.length]);
-
-  // --- Helpers ---
-  const startTestIfTypingKey = useCallback(
-    (key: string) => {
-      if (isStarted || isFinished) return;
-      if (!isTypingStarterKey(key)) return;
-
-      const now = Date.now();
-      setIsStarted(true);
-      setStartTime(now);
-      isActiveRef.current = true;
-    },
-    [isStarted, isFinished]
-  );
-
-  const commitCurrentWord = useCallback(() => {
-    if (!hasTypedInCurrentWord) return;
-
-    const currentWordInput = currentInput;
-    const currentIndex = currentWordIndex;
-    const nextIndex = currentIndex + 1;
-
-    // Update state atomically
-    setCompletedInputs((prev) => {
-      const next = [...prev];
-      while (next.length <= currentIndex) {
-        next.push("");
-      }
-      next[currentIndex] = currentWordInput;
-      return next;
-    });
-
-    setCurrentWordIndex(nextIndex);
-    setCurrentInput("");
-    setHasTypedInCurrentWord(false);
-
-    // Add space keystroke
-    const spaceKeystroke = {
-      char: " ",
-      correct: true,
-      timestamp: Date.now(),
-      isSpace: true,
-    };
-    setKeystrokes((prev) => [...prev, spaceKeystroke]);
-    setAllKeystrokes((prev) => [...prev, spaceKeystroke]);
-  }, [currentInput, currentWordIndex, hasTypedInCurrentWord]);
-
-  // --- Improved reset with proper cleanup ---
-  const resetTest = useCallback(() => {
-    // Clear timer first
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    isActiveRef.current = false;
-    setIsStarted(false);
-    setIsFinished(false);
-    setTimeLeft(duration);
-    setStartTime(null);
-    setCurrentWordIndex(0);
-    setCurrentInput("");
-    setCompletedInputs([]);
-    setKeystrokes([]);
-    setAllKeystrokes([]);
-    setHasTypedInCurrentWord(false);
-    setWords(generateWords(500));
-  }, [duration]);
-
-  const newTest = useCallback(() => {
-    resetTest();
-  }, [resetTest]);
-
-  const setFinished = useCallback((val: boolean) => {
-    setIsFinished(val);
-    if (val) {
-      isActiveRef.current = false;
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
+      // Trim if needed
+      if (state.words.length > 700) {
+        const keepFrom = Math.max(0, state.words.length - 200);
+        dispatch({ type: "TRIM_WORDS", keepFrom });
       }
     }
-  }, []);
+  }, [state.currentWordIndex, state.words.length]);
 
-  // --- Main key processor ---
+  // Memoized callbacks
   const processKey = useCallback(
     (key: string) => {
-      if (isFinished) return;
-      if (isModifierKey(key)) return;
+      if (state.isFinished || isModifierKey(key)) return;
 
-      if (!isStarted) {
-        startTestIfTypingKey(key);
-        if (!isTypingStarterKey(key)) return;
+      // Start test if needed
+      if (!state.isStarted && isTypingStarterKey(key)) {
+        dispatch({ type: "START_TEST", timestamp: Date.now() });
       }
 
-      const currentWord = words[currentWordIndex];
+      if (!state.isStarted && !isTypingStarterKey(key)) return;
+
+      const currentWord = state.words[state.currentWordIndex];
       if (!currentWord) return;
 
+      const timestamp = Date.now();
+
       if (key === "Backspace") {
-        // Track backspace in all keystrokes
-        setAllKeystrokes((prev) => [
-          ...prev,
-          {
-            char: "Backspace",
-            correct: false,
-            timestamp: Date.now(),
-            isSpace: false,
-          },
-        ]);
-
-        if (currentInput.length > 0) {
-          // Mark the last keystroke as backspaced
-          setAllKeystrokes((prev) => {
-            const newKeystrokes = [...prev];
-            // Find the last non-backspace keystroke and mark it as backspaced
-            for (let i = newKeystrokes.length - 1; i >= 0; i--) {
-              if (
-                newKeystrokes[i].char !== "Backspace" &&
-                !newKeystrokes[i].wasBackspaced
-              ) {
-                newKeystrokes[i] = { ...newKeystrokes[i], wasBackspaced: true };
-                break;
-              }
-            }
-            return newKeystrokes;
-          });
-
-          setCurrentInput((prev) => prev.slice(0, -1));
-          setKeystrokes((prev) => prev.slice(0, -1));
-          if (currentInput.length === 1) {
-            setHasTypedInCurrentWord(false);
-          }
-        }
+        dispatch({ type: "BACKSPACE", timestamp });
         return;
       }
 
-      // Space: commit current word
       if (key === " ") {
-        commitCurrentWord();
+        dispatch({ type: "COMMIT_WORD", timestamp });
         return;
       }
 
-      // Ignore special keys
-      if (key === "Enter" || key === "Tab" || key === "Escape") {
-        return;
-      }
+      if (key === "Enter" || key === "Tab" || key === "Escape") return;
 
-      // Regular printable character
+      // Regular character
       if (key.length === 1 && !/[\x00-\x1F]/.test(key)) {
-        // Count wrong characters in current input more accurately
+        // Check wrong character limit
         let wrongCharsInCurrentWord = 0;
         const maxWrongChars = 10;
 
-        // Count existing wrong characters
-        for (let i = 0; i < currentInput.length; i++) {
+        for (let i = 0; i < state.currentInput.length; i++) {
           const expectedChar = (currentWord[i] ?? "").toLowerCase();
-          const typedChar = currentInput[i].toLowerCase();
+          const typedChar = state.currentInput[i].toLowerCase();
           if (typedChar !== expectedChar) {
             wrongCharsInCurrentWord++;
           }
         }
 
-        // Check if this new character would be wrong
-        const charIndex = currentInput.length;
+        const charIndex = state.currentInput.length;
         const expectedChar = currentWord[charIndex] ?? "";
-        const isCorrect = key === expectedChar; // Remove toLowerCase() for case-sensitive comparison
+        const isCorrect = key === expectedChar;
 
-        // Strict limit: if we already have max wrong chars and this would be wrong, block it
-        if (!isCorrect && wrongCharsInCurrentWord >= maxWrongChars) {
-          console.log(
-            "[v0] Blocked character - already at limit:",
-            wrongCharsInCurrentWord
-          );
-          return;
-        }
-
-        // Also block if we're typing beyond the word length and already have wrong chars
+        if (!isCorrect && wrongCharsInCurrentWord >= maxWrongChars) return;
         if (
           charIndex >= currentWord.length &&
           wrongCharsInCurrentWord >= maxWrongChars
-        ) {
-          console.log(
-            "[v0] Blocked extra character - at word end with wrong chars:",
-            wrongCharsInCurrentWord
-          );
+        )
           return;
-        }
 
-        const newInput = currentInput + key;
-
-        setCurrentInput(newInput);
-
-        if (!hasTypedInCurrentWord) {
-          setHasTypedInCurrentWord(true);
-        }
-
-        const keystroke = {
-          char: key,
-          correct: isCorrect,
-          timestamp: Date.now(),
-          isSpace: false,
-          originalPosition: charIndex,
-        };
-
-        setKeystrokes((prev) => [...prev, keystroke]);
-        setAllKeystrokes((prev) => [...prev, keystroke]);
+        dispatch({ type: "ADD_CHARACTER", char: key, isCorrect, timestamp });
       }
     },
     [
-      isFinished,
-      isStarted,
-      words,
-      currentWordIndex,
-      currentInput,
-      hasTypedInCurrentWord,
-      commitCurrentWord,
-      startTestIfTypingKey,
+      state.isFinished,
+      state.isStarted,
+      state.words,
+      state.currentWordIndex,
+      state.currentInput,
     ]
   );
 
-  // --- Input handler ---
   const handleInputKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (
@@ -531,48 +503,53 @@ export function useTypingEngine(duration: number): UseTypingEngineAPI {
     [processKey]
   );
 
-  // --- Results computation using the new detailed calculation ---
-  const results: UseTypingEngineResults = useMemo(() => {
-    return calculateDetailedResults(
-      keystrokes,
-      allKeystrokes,
-      completedInputs,
-      words,
-      currentWordIndex,
-      currentInput,
-      duration,
-      startTime,
-      isFinished
+  const resetTest = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    isActiveRef.current = false;
+    const words = generateWords(500);
+    dispatch({ type: "RESET_TEST", duration: durationRef.current, words });
+  }, []);
+
+  const newTest = useCallback(() => {
+    resetTest();
+  }, [resetTest]);
+
+  const setFinished = useCallback((val: boolean) => {
+    if (val) {
+      dispatch({ type: "FINISH_TEST" });
+    }
+  }, []);
+
+  // Memoized results calculation
+  const results = useMemo(() => {
+    return calculateResults(
+      state.keystrokes,
+      state.allKeystrokes,
+      state.completedInputs,
+      state.words,
+      state.currentWordIndex,
+      state.currentInput,
+      durationRef.current,
+      state.startTime,
+      state.isFinished
     );
   }, [
-    keystrokes,
-    allKeystrokes,
-    completedInputs,
-    words,
-    currentWordIndex,
-    currentInput,
-    duration,
-    startTime,
-    isFinished,
+    state.keystrokes,
+    state.allKeystrokes,
+    state.completedInputs,
+    state.words,
+    state.currentWordIndex,
+    state.currentInput,
+    state.startTime,
+    state.isFinished,
   ]);
 
   return {
-    // state
-    isStarted,
-    isFinished,
-    timeLeft,
-    startTime,
-    words,
-    currentWordIndex,
-    currentInput,
-    completedInputs,
-    keystrokes,
-    allKeystrokes,
-
-    // computed
+    ...state,
     results,
-
-    // actions
     processKey,
     handleInputKeyDown,
     resetTest,
