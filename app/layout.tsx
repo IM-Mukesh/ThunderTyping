@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThunderLoader } from "@/components/ThunderLogo";
 
 export const metadata: Metadata = {
   title: "v0 App",
@@ -31,7 +32,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
+          <Suspense fallback={<ThunderLoader />}>{children}</Suspense>
           <Analytics />
         </ThemeProvider>
       </body>

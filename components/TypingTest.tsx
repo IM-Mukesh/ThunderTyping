@@ -1,3 +1,4 @@
+// TypingTest.tsx
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -7,6 +8,7 @@ import TimerDisplay from "./TimerDisplay";
 import TimeSelector from "./TimeSelector";
 import WordDisplay from "./WordDisplay";
 import ResultsDisplay from "./ResultsDisplay";
+import { ThunderLoader } from "./ThunderLogo";
 
 interface TypingTestProps {
   duration: number;
@@ -99,7 +101,6 @@ export default function TypingTest({
     [processKey, showResults, isScrolling]
   );
 
-  // Global key listener forwarding to engine
   useEffect(() => {
     window.addEventListener("keydown", onWindowKey);
     return () => window.removeEventListener("keydown", onWindowKey);
@@ -157,83 +158,71 @@ export default function TypingTest({
 
   if (!words || words.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-neutral-400">Loading...</div>
+      <div className="flex items-center justify-center min-h-[360px]">
+        <ThunderLoader />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-6xl px-6 space-y-8 relative overflow-hidden">
+    <div className="w-full max-w-4xl px-4 space-y-6 relative">
+      {/* Timer/Selector area — fixed height so they occupy same space */}
+      <div className="w-full flex items-center justify-center">
+        <div className="h-16 flex items-center justify-center">
+          {/* Show TimeSelector only before test starts */}
+          {!isStarted && !isFinished ? (
+            <TimeSelector
+              duration={duration}
+              onDurationChange={onDurationChange}
+              disabled={isStarted || isFinished}
+            />
+          ) : (
+            // When test started (or running), show timer in same space
+            <TimerDisplay
+              timeLeft={timeLeft}
+              isActive={isStarted && !isFinished}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* The card that contains ONLY the typing words / input / instructions */}
       <motion.div
-        className="relative w-full"
-        animate={{
-          y: showResults ? "-100vh" : "0vh",
-        }}
+        className="mx-auto w-full"
+        animate={{ y: showResults ? "-20vh" : "0px" }}
         transition={{
           type: "spring",
           stiffness: 80,
           damping: 20,
-          duration: 1.2,
+          duration: 0.9,
         }}
       >
         <AnimatePresence mode="wait">
           {!showResults && (
             <motion.div
-              key="typing-area"
+              key="typing-card"
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
+              transition={{ duration: 0.25 }}
               ref={containerRef}
-              className="mx-auto max-w-4xl p-8 rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm"
               onClick={handleWrapperClick}
+              className="mx-auto max-w-4xl rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm p-8"
+              style={{ minHeight: 260 }}
             >
-              {/* Header / Title (centered) */}
-              <div className="w-full flex items-center justify-center pt-8">
-                <h1
-                  className="text-4xl font-bold text-white"
-                  style={{
-                    background: "linear-gradient(90deg, #22d3ee, #60a5fa)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                  }}
-                >
-                  ThunderTyping
-                </h1>
-              </div>
-
-              {/* Timer */}
-              <div className="mt-6 flex items-center justify-center">
-                <TimerDisplay
-                  timeLeft={timeLeft}
-                  isActive={isStarted && !isFinished}
-                />
-              </div>
-
-              {/* Time selector */}
-              <div className="flex items-center justify-center">
-                <div className="h-[72px] w-full flex items-center justify-center">
-                  <TimeSelector
-                    duration={duration}
-                    onDurationChange={onDurationChange}
-                    disabled={isStarted || isFinished}
+              {/* Center words vertically & horizontally inside card */}
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="w-full">
+                  <WordDisplay
+                    words={words}
+                    currentWordIndex={currentWordIndex}
+                    currentInput={currentInput}
+                    completedInputs={completedInputs}
+                    visibleLines={3}
                   />
                 </div>
               </div>
 
-              {/* Word area */}
-              <div className="mt-6 w-full">
-                <WordDisplay
-                  words={words}
-                  currentWordIndex={currentWordIndex}
-                  currentInput={currentInput}
-                  completedInputs={completedInputs}
-                  visibleLines={3}
-                />
-              </div>
-
-              {/* Hidden input with improved accessibility */}
+              {/* Hidden input for typing */}
               <input
                 ref={inputRef}
                 className="sr-only"
@@ -249,7 +238,7 @@ export default function TypingTest({
                 role="textbox"
               />
 
-              {/* Instructions with proper ID for accessibility */}
+              {/* Instructions below (small) */}
               <div className="mt-6 pb-2 flex items-center justify-center">
                 <div
                   id="typing-instructions"
@@ -265,6 +254,7 @@ export default function TypingTest({
         </AnimatePresence>
       </motion.div>
 
+      {/* Results overlay — header has higher z so it remains visible */}
       <AnimatePresence>
         {showResults && (
           <motion.div
@@ -276,11 +266,12 @@ export default function TypingTest({
               type: "spring",
               stiffness: 80,
               damping: 20,
-              duration: 1.2,
+              duration: 1.0,
             }}
-            className="fixed inset-0 flex items-center justify-center bg-black/95 backdrop-blur-sm z-50"
+            className="fixed inset-0 flex items-start justify-center bg-black/95 backdrop-blur-sm z-40"
+            style={{ paddingTop: 96 }} // leave space for fixed header
           >
-            <div className="w-full max-w-4xl mx-auto px-6">
+            <div className="w-full max-w-4xl mx-auto px-6 mt-6">
               <ResultsDisplay
                 grossWpm={results.grossWpm}
                 netWpm={results.netWpm}
@@ -301,7 +292,7 @@ export default function TypingTest({
         )}
       </AnimatePresence>
 
-      {/* Tab+Enter hint - always visible at bottom of screen */}
+      {/* Tab+Enter hint - bottom center */}
       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-10">
         <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-4 py-2 rounded-full">
           <span className="font-mono text-slate-300">tab</span>
