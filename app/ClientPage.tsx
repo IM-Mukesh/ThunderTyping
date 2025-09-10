@@ -41,29 +41,25 @@ export default function ClientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center">
-      {/* Top fixed header: small logo + inline title */}
-
-      <header className="fixed top-6 left-1/2 transform -translate-x-1/2 w-full max-w-6xl z-50">
-        <Link href="/" className="ml-36 flex items-center gap-3 cursor-pointer">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center justify-center">
+      {/* Centered logo + text */}
+      <header className="fixed top-6 left-1/2 transform -translate-x-1/2 w-full max-w-6xl z-[60]">
+        <Link href="/" className="flex items-center gap-3 justify-center">
           <ThunderLogo size={42} className="block" />
           <span
             className="font-bold text-2xl"
-            style={{
-              background: "linear-gradient(90deg, #22d3ee, #60a5fa)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
+            style={
+              {
+                /* gradient text */
+              }
+            }
           >
             ThunderTyping
           </span>
         </Link>
       </header>
 
-      {/* spacer so content doesn't sit under header */}
-      <div className="h-20" />
-
+      {/* TypingTest in center below logo */}
       <div className="w-full max-w-6xl px-6 pb-20 flex-1 flex items-center justify-center">
         <TypingTest
           duration={currentDuration}

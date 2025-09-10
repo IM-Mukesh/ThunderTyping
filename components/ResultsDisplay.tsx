@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-
+import KeyboardHint from "@/components/KeyboardHint";
 interface ResultsDisplayProps {
   grossWpm: number;
   netWpm: number;
@@ -164,16 +164,17 @@ export default function ResultsDisplayFixed({
           </div>
 
           {/* single refresh icon action */}
+          {/* single refresh icon action */}
           <button
             aria-label="Retry test"
             onClick={() => onRetry()}
-            title="Restart test"
-            className="absolute cursor-pointer right-6 bottom-6 w-12 h-12 rounded-full bg-neutral-900/70 border border-neutral-700/30 flex items-center justify-center shadow-md hover:scale-105 transition-transform"
+            title="Restart"
+            className="absolute left-1/2 transform -translate-x-1/2 bottom-4 cursor-pointer w-8 h-8 rounded-full bg-neutral-900/70 border border-neutral-700/30 flex items-center justify-center shadow-md hover:scale-105 transition-transform"
             style={{ zIndex: 10 }}
           >
             <svg
-              width="22"
-              height="22"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               className="text-cyan-400"
@@ -194,15 +195,6 @@ export default function ResultsDisplayFixed({
               />
             </svg>
           </button>
-
-          {/* small keyboard tip */}
-          <div className="text-center mt-6">
-            <div className="text-xs text-neutral-500">
-              Tip: Press <span className="font-mono text-neutral-400">Tab</span>{" "}
-              + <span className="font-mono text-neutral-400">Enter</span> to
-              retry quickly
-            </div>
-          </div>
         </div>
 
         {/* subtle outer border glow (keeps consistent UI separation) */}
@@ -216,6 +208,7 @@ export default function ResultsDisplayFixed({
           }}
         />
       </div>
+      <KeyboardHint className="!fixed !bottom-8" label="retry test" />
     </div>
   );
 }

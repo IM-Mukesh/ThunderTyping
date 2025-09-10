@@ -9,6 +9,7 @@ import TimeSelector from "./TimeSelector";
 import WordDisplay from "./WordDisplay";
 import ResultsDisplay from "./ResultsDisplay";
 import { ThunderLoader } from "./ThunderLogo";
+import KeyboardHint from "@/components/KeyboardHint";
 
 interface TypingTestProps {
   duration: number;
@@ -268,8 +269,8 @@ export default function TypingTest({
               damping: 20,
               duration: 1.0,
             }}
-            className="fixed inset-0 flex items-start justify-center bg-black/95 backdrop-blur-sm z-40"
-            style={{ paddingTop: 96 }} // leave space for fixed header
+            className="fixed inset-0 flex items-center justify-center bg-black/95 backdrop-blur-sm z-40"
+            // style={{ paddingTop: 96 }} // leave space for fixed header
           >
             <div className="w-full max-w-4xl mx-auto px-6 mt-6">
               <ResultsDisplay
@@ -293,7 +294,7 @@ export default function TypingTest({
       </AnimatePresence>
 
       {/* Tab+Enter hint - bottom center */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-10">
+      {/* <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-10">
         <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-4 py-2 rounded-full">
           <span className="font-mono text-slate-300">tab</span>
           <span className="text-slate-500">+</span>
@@ -303,7 +304,8 @@ export default function TypingTest({
             {showResults ? "retry test" : "restart test"}
           </span>
         </div>
-      </div>
+      </div> */}
+      <KeyboardHint label={showResults ? "retry test" : "restart test"} />
     </div>
   );
 }
