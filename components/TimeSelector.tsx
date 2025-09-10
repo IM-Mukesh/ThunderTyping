@@ -267,13 +267,12 @@ const TimeInput: React.FC<TimeInputProps> = ({
     <div className="relative">
       <input
         ref={inputRef}
-        type="number"
+        type="text"
+        inputMode="numeric"
         value={value}
         onChange={onChange}
         onKeyDown={onKeyDown}
-        placeholder="e.g. 90, 300, 1800..."
-        min="1"
-        max="36000"
+        placeholder="e.g. 90, 300, 1800, 10m, 1.5h"
         autoFocus
         className={cn(
           "w-full h-12 px-4 bg-neutral-800/80 border-2 rounded-xl text-white text-lg font-medium placeholder:text-neutral-500 transition-all duration-200 focus:outline-none backdrop-blur-sm",
