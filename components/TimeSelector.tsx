@@ -54,36 +54,53 @@ function secondsToTimeString(seconds: number): string {
 }
 
 function parseTimeInput(input: string): ParseTimeResult | null {
-  const value = parseInt(input.trim());
-  if (isNaN(value) || value <= 0) return null;
+  if (!input || !input.trim()) return null;
+  const raw = input.trim().toLowerCase();
 
-  let seconds: number;
+  // Accept formats:
+  // - plain number -> treat as seconds (e.g. "90" => 90s)
+  // - with suffix: "s", "m", "h" (e.g. "90s", "3m", "1.5h")
+  // - optionally allow spaces: "1 h 30 m" is not fully supported by this simple parser
+  // Keep parser simple and deterministic.
 
-  if (value <= 300) {
-    // 1-300: treat as seconds
-    seconds = value;
-  } else if (value <= 720) {
-    // 301-720: treat as minutes
-    seconds = value * 60;
-  } else {
-    // 721+: smart conversion
-    if (value <= 600) {
-      seconds = value * 60;
-    } else {
-      seconds = value;
+  // If input contains any letter unit, parse unit-aware
+  const unitMatch = raw.match(/^([\d.]+)\s*([smh])$/);
+  if (unitMatch) {
+    const num = Number(unitMatch[1]);
+    if (isNaN(num) || num <= 0) return null;
+    const unit = unitMatch[2];
+
+    let seconds = 0;
+    if (unit === "s") seconds = Math.round(num);
+    else if (unit === "m") seconds = Math.round(num * 60);
+    else if (unit === "h") seconds = Math.round(num * 3600);
+
+    if (seconds > 36000) {
+      return {
+        seconds,
+        timeString: secondsToTimeString(seconds),
+        error: "Maximum duration is 10 hours (36000 seconds)",
+      };
     }
+    return { seconds, timeString: secondsToTimeString(seconds) };
   }
 
-  // Check if exceeds 10 hours (36000 seconds)
-  if (seconds > 36000) {
-    return {
-      seconds,
-      timeString: secondsToTimeString(seconds),
-      error: "Maximum duration is 10 hours (36000 seconds)",
-    };
+  // If raw is plain number (no unit), treat as seconds by default
+  const asNum = Number(raw);
+  if (!isNaN(asNum) && asNum > 0) {
+    const seconds = Math.round(asNum);
+    if (seconds > 36000) {
+      return {
+        seconds,
+        timeString: secondsToTimeString(seconds),
+        error: "Maximum duration is 10 hours (36000 seconds)",
+      };
+    }
+    return { seconds, timeString: secondsToTimeString(seconds) };
   }
 
-  return { seconds, timeString: secondsToTimeString(seconds) };
+  // For anything else return null (invalid)
+  return null;
 }
 
 // Random corner animation variants
@@ -141,7 +158,7 @@ const PresetButton = ({
     whileHover={!disabled ? { scale: 1.05, y: -1 } : {}}
     whileTap={!disabled ? { scale: 0.95 } : {}}
     className={cn(
-      "h-8 px-3 rounded-full text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 relative overflow-hidden",
+      "h-8 px-3 cursor-pointer rounded-full text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 relative overflow-hidden",
       isActive
         ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/30"
         : "bg-neutral-800/80 hover:bg-neutral-700/80 text-neutral-200 hover:text-white border border-neutral-600/40 hover:border-neutral-500/60 backdrop-blur-sm",
@@ -178,7 +195,7 @@ const CustomButton = ({
     whileHover={!disabled ? { scale: 1.05, y: -1 } : {}}
     whileTap={!disabled ? { scale: 0.95 } : {}}
     className={cn(
-      "h-8 px-3 rounded-full text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 flex items-center gap-2 relative overflow-hidden",
+      "h-8 px-3 cursor-pointer rounded-full text-sm font-semibold transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 flex items-center gap-2 relative overflow-hidden",
       isCustomDuration
         ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30"
         : "bg-neutral-800/80 hover:bg-neutral-700/80 text-neutral-200 hover:text-white border border-neutral-600/40 hover:border-neutral-500/60 backdrop-blur-sm",
