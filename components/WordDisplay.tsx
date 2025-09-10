@@ -13,7 +13,7 @@ interface WordDisplayProps {
   words: string[];
   currentWordIndex: number;
   currentInput: string;
-  completedInputs: string[]; // typed strings for words already completed
+  completedInputs: string[]; // typed strings for words already completed..
   visibleLines?: number;
 }
 
