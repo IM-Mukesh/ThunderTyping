@@ -14,7 +14,6 @@ interface WordDisplayProps {
   currentWordIndex: number;
   currentInput: string;
   completedInputs: string[];
-  // optional: number of visible lines (keeps layout stable)
   visibleLines?: number;
 }
 
@@ -24,13 +23,13 @@ interface WordPosition {
   x: number;
   y: number;
   width: number;
-  lineIndex: number;
+  lineIndex: number; // absolute line index in layout
 }
 
-// locked typography values to avoid layout shift
-const FONT_PX = 22; // matches your design
-const LINE_PX = 44; // line-height px
-const WORD_SPACING = 16; // px between words
+// typography/layout constants
+const FONT_PX = 22;
+const LINE_PX = 44;
+const WORD_SPACING = 16;
 const DEFAULT_VISIBLE_LINES = 3;
 
 export function WordDisplay({
@@ -42,30 +41,25 @@ export function WordDisplay({
 }: WordDisplayProps) {
   const [mounted, setMounted] = useState(false);
   const [containerWidth, setContainerWidth] = useState(800);
+  // integer line offset (how many lines we have scrolled from top)
   const [currentLineOffset, setCurrentLineOffset] = useState(0);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const measurerRef = useRef<HTMLSpanElement | null>(null);
-  const cleanupRef = useRef<boolean>(false);
+  const cleanupRef = useRef(false);
 
+  // update container width (debounced)
   const updateWidth = useCallback(() => {
     if (containerRef.current && !cleanupRef.current) {
       setContainerWidth(containerRef.current.offsetWidth);
     }
   }, []);
 
-  const debouncedUpdateWidth = useCallback(() => {
-    let timeoutId: NodeJS.Timeout;
-    return () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateWidth, 100);
-    };
-  }, [updateWidth]);
-
   useEffect(() => {
     setMounted(true);
     cleanupRef.current = false;
 
+    // create hidden measurer span once
     if (!measurerRef.current) {
       try {
         const span = document.createElement("span");
@@ -75,116 +69,140 @@ export function WordDisplay({
         span.style.fontSize = `${FONT_PX}px`;
         span.style.lineHeight = `${LINE_PX}px`;
         (span.style as any).fontFamily = "inherit";
-        span.style.pointerEvents = "none"; // Prevent any interaction
+        span.style.pointerEvents = "none";
         document.body.appendChild(span);
         measurerRef.current = span;
-      } catch (error) {
-        console.warn("[WordDisplay] Failed to create measurer element:", error);
+      } catch (err) {
+        console.warn("[WordDisplay] measurer create failed", err);
       }
     }
 
     updateWidth();
-    const debouncedHandler = debouncedUpdateWidth();
-    window.addEventListener("resize", debouncedHandler);
+    let tid: any;
+    const onResize = () => {
+      clearTimeout(tid);
+      tid = setTimeout(updateWidth, 100);
+    };
+    window.addEventListener("resize", onResize);
 
     return () => {
       cleanupRef.current = true;
-      window.removeEventListener("resize", debouncedHandler);
-
-      if (measurerRef.current) {
+      window.removeEventListener("resize", onResize);
+      if (measurerRef.current && measurerRef.current.parentNode) {
         try {
-          if (measurerRef.current.parentNode) {
-            measurerRef.current.parentNode.removeChild(measurerRef.current);
-          }
-        } catch (error) {
-          console.warn(
-            "[WordDisplay] Failed to remove measurer element:",
-            error
-          );
+          measurerRef.current.parentNode.removeChild(measurerRef.current);
+        } catch (e) {
+          /* ignore */
         } finally {
           measurerRef.current = null;
         }
       }
     };
-  }, [updateWidth, debouncedUpdateWidth]);
+  }, [updateWidth]);
 
-  const wordPositions = useMemo(() => {
+  // 1) Measure widths (only when words/containerWidth change)
+  const measuredWidths = useMemo(() => {
+    const measurer = measurerRef.current;
     if (
+      !measurer ||
       !mounted ||
       containerWidth === 0 ||
-      words.length === 0 ||
-      !measurerRef.current
-    )
-      return [];
+      !words ||
+      words.length === 0
+    ) {
+      return new Array<number>(0);
+    }
 
-    const measurer = measurerRef.current;
+    const arr: number[] = new Array(words.length);
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i] ?? "";
+      try {
+        measurer.textContent = w;
+        const measured = measurer.offsetWidth;
+        arr[i] =
+          measured && measured > 0
+            ? measured
+            : Math.max(10, Math.floor(w.length * FONT_PX * 0.6));
+      } catch {
+        arr[i] = Math.max(10, Math.floor(w.length * FONT_PX * 0.6));
+      }
+    }
+    return arr;
+  }, [words, containerWidth, mounted]);
+
+  // 2) Build absolute positions for ALL words (recomputed only when measuredWidths changes)
+  //    This ensures stable lineIndex values and repeatable scrolling behavior.
+  const wordPositions = useMemo(() => {
+    if (!measuredWidths || measuredWidths.length === 0)
+      return [] as WordPosition[];
+
     const positions: WordPosition[] = [];
-
-    let currentX = 0;
-    let currentY = 0;
+    let curX = 0;
+    let curY = 0;
     let lineIndex = 0;
 
-    const startIdx = Math.max(0, currentWordIndex - 30);
-    const endIdx = Math.min(words.length - 1, currentWordIndex + 100);
+    for (let i = 0; i < measuredWidths.length; i++) {
+      const w = words[i] ?? "";
+      const width =
+        measuredWidths[i] ?? Math.max(10, Math.floor(w.length * FONT_PX * 0.6));
 
-    for (let i = startIdx; i <= endIdx; i++) {
-      const word = words[i];
-      if (!word) continue;
-
-      let wordWidth: number;
-      try {
-        measurer.textContent = word;
-        wordWidth =
-          measurer.offsetWidth || Math.max(10, word.length * (FONT_PX * 0.6));
-      } catch (error) {
-        wordWidth = Math.max(10, word.length * (FONT_PX * 0.6));
-      }
-
-      if (currentX + wordWidth > containerWidth && currentX > 0) {
-        currentX = 0;
-        currentY += LINE_PX;
+      // wrap to next line if needed
+      if (curX + width > containerWidth && curX > 0) {
+        curX = 0;
+        curY += LINE_PX;
         lineIndex++;
       }
 
       positions.push({
-        word,
+        word: w,
         index: i,
-        x: currentX,
-        y: currentY,
-        width: wordWidth,
+        x: curX,
+        y: curY,
+        width,
         lineIndex,
       });
 
-      currentX += wordWidth + WORD_SPACING;
+      curX += width + WORD_SPACING;
     }
 
     return positions;
-  }, [words, mounted, containerWidth, currentWordIndex]);
+  }, [measuredWidths, words, containerWidth]);
 
+  // 3) Scrolling logic: detect when the current word moves beyond the SECOND visible line
+  //    and scroll exactly one line (so the current word becomes positioned at second visible line start).
   useEffect(() => {
-    if (wordPositions.length === 0) return;
+    if (!wordPositions || wordPositions.length === 0) return;
+    if (currentWordIndex < 0 || currentWordIndex >= wordPositions.length)
+      return;
 
-    const currentWordPos = wordPositions.find(
-      (pos) => pos.index === currentWordIndex
-    );
-    if (currentWordPos) {
-      const currentLine = currentWordPos.lineIndex;
-      const maxVisibleLine = currentLineOffset + visibleLines - 1;
+    const pos = wordPositions[currentWordIndex];
+    if (!pos) return;
 
-      // Scroll down if current word is below visible area
-      if (currentLine > maxVisibleLine) {
-        setCurrentLineOffset(currentLine - visibleLines + 1);
-      }
-      // Scroll up if current word is above visible area
-      else if (currentLine < currentLineOffset) {
-        setCurrentLineOffset(currentLine);
-      }
+    // compute relative top of current word in pixels within the visible window
+    const relativeTop = pos.y - currentLineOffset * LINE_PX;
+
+    // If the current word goes below the second visible line start (i.e. index >= 2),
+    // scroll up by exactly one line so the current word's top becomes LINE_PX (second line start).
+    // visibleLines default 3 -> second visible line index = 1 -> trigger at >= 2 lines (0-based)
+    if (relativeTop >= LINE_PX * 2) {
+      setCurrentLineOffset((prev) => prev + 1);
+      return;
     }
-  }, [currentWordIndex, wordPositions, visibleLines, currentLineOffset]);
 
+    // If the current word moved above the visible area, snap it into view (scroll up).
+    if (relativeTop < 0) {
+      // place the word's line as the top visible line (so it's visible)
+      const targetLine = pos.lineIndex;
+      setCurrentLineOffset(Math.max(0, targetLine));
+      return;
+    }
+
+    // Otherwise no change needed.
+  }, [wordPositions, currentWordIndex, currentLineOffset, visibleLines]);
+
+  // renderer for a single word position
   const renderWord = (pos: WordPosition) => {
     const { word, index } = pos;
-
     const top = pos.y - currentLineOffset * LINE_PX;
     const style: React.CSSProperties = {
       position: "absolute",
@@ -193,7 +211,7 @@ export function WordDisplay({
     };
 
     if (index < currentWordIndex) {
-      const typed = completedInputs[index] || "";
+      const typed = completedInputs[index] ?? "";
 
       return (
         <span
@@ -220,6 +238,7 @@ export function WordDisplay({
             );
           })}
 
+          {/* extra chars typed beyond word length */}
           {typed.length > word.length &&
             typed
               .slice(word.length)
@@ -338,7 +357,7 @@ export function WordDisplay({
           height: LINE_PX * visibleLines,
           fontSize: `${FONT_PX}px`,
           lineHeight: `${LINE_PX}px`,
-          transition: "transform .3s ease",
+          transition: "transform .14s ease",
         }}
         role="region"
         aria-label="Typing area"
