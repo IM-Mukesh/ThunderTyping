@@ -1,4 +1,3 @@
-// TypingTest.tsx
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -7,7 +6,18 @@ import { useTypingEngine } from "@/hooks/useTypingEngine";
 import TimerDisplay from "./TimerDisplay";
 import TimeSelector from "./TimeSelector";
 import WordDisplay from "./WordDisplay";
-import ResultsDisplay from "./ResultsDisplay";
+// import ResultsDisplay from "./ResultsDisplay";
+import dynamic from "next/dynamic";
+const ResultsDisplay = dynamic(() => import("./ResultsDisplay"), {
+  ssr: false,
+  loading: () => (
+    <div aria-hidden className="min-h-[200px] flex items-center justify-center">
+      <div className="w-12 h-12">
+        <ThunderLoader size={48} />
+      </div>
+    </div>
+  ),
+});
 import { ThunderLoader } from "./ThunderLogo";
 import KeyboardHint from "@/components/KeyboardHint";
 
@@ -45,9 +55,10 @@ export default function TypingTest({
 
   useEffect(() => {
     cleanupRef.current = false;
+    // small delay to ensure hydration complete; 0ms timeout used intentionally
     const t = setTimeout(() => {
       if (!cleanupRef.current) {
-        inputRef.current?.focus();
+        inputRef.current?.focus?.();
       }
     }, 0);
     return () => {
@@ -58,18 +69,18 @@ export default function TypingTest({
 
   useEffect(() => {
     if (isFinished && !showResults) {
-      setIsScrolling(true);
+      // avoid layout thrash: set state, let animation handle scroll/focus
       setShowResults(true);
-      setIsScrolling(false);
     }
   }, [isFinished, showResults]);
 
   const handleRetry = useCallback(() => {
     setShowResults(false);
     resetTest();
+    // small delay to allow re-render before focusing
     setTimeout(() => {
       if (!cleanupRef.current) {
-        inputRef.current?.focus();
+        inputRef.current?.focus?.();
       }
     }, 100);
   }, [resetTest]);
@@ -79,7 +90,7 @@ export default function TypingTest({
     newTest();
     setTimeout(() => {
       if (!cleanupRef.current) {
-        inputRef.current?.focus();
+        inputRef.current?.focus?.();
       }
     }, 100);
   }, [newTest]);
@@ -154,7 +165,7 @@ export default function TypingTest({
 
   const handleWrapperClick = useCallback(() => {
     if (showResults || isScrolling) return;
-    inputRef.current?.focus();
+    inputRef.current?.focus?.();
   }, [showResults, isScrolling]);
 
   if (!words || words.length === 0) {
@@ -170,7 +181,6 @@ export default function TypingTest({
       {/* Timer/Selector area — fixed height so they occupy same space */}
       <div className="w-full flex items-center justify-center">
         <div className="h-16 flex items-center justify-center">
-          {/* Show TimeSelector only before test starts */}
           {!isStarted && !isFinished ? (
             <TimeSelector
               duration={duration}
@@ -178,7 +188,6 @@ export default function TypingTest({
               disabled={isStarted || isFinished}
             />
           ) : (
-            // When test started (or running), show timer in same space
             <TimerDisplay
               timeLeft={timeLeft}
               isActive={isStarted && !isFinished}
@@ -197,6 +206,7 @@ export default function TypingTest({
           damping: 20,
           duration: 0.9,
         }}
+        style={{ willChange: "transform, opacity" }} // hint to browser for animation
       >
         <AnimatePresence mode="wait">
           {!showResults && (
@@ -208,9 +218,8 @@ export default function TypingTest({
               ref={containerRef}
               onClick={handleWrapperClick}
               className="mx-auto max-w-4xl rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm p-8"
-              style={{ minHeight: 260 }}
+              style={{ minHeight: 260, willChange: "transform, opacity" }}
             >
-              {/* Center words vertically & horizontally inside card */}
               <div className="w-full h-full flex items-center justify-center">
                 <div className="w-full">
                   <WordDisplay
@@ -223,7 +232,6 @@ export default function TypingTest({
                 </div>
               </div>
 
-              {/* Hidden input for typing */}
               <input
                 ref={inputRef}
                 className="sr-only"
@@ -239,7 +247,6 @@ export default function TypingTest({
                 role="textbox"
               />
 
-              {/* Instructions below (small) */}
               <div className="mt-6 pb-2 flex items-center justify-center">
                 <div
                   id="typing-instructions"
@@ -255,7 +262,7 @@ export default function TypingTest({
         </AnimatePresence>
       </motion.div>
 
-      {/* Results overlay — header has higher z so it remains visible */}
+      {/* Results overlay */}
       <AnimatePresence>
         {showResults && (
           <motion.div
@@ -270,7 +277,7 @@ export default function TypingTest({
               duration: 1.0,
             }}
             className="fixed inset-0 flex items-center justify-center bg-black/95 backdrop-blur-sm z-40"
-            // style={{ paddingTop: 96 }} // leave space for fixed header
+            style={{ willChange: "transform, opacity" }}
           >
             <div className="w-full max-w-4xl mx-auto px-6 mt-6">
               <ResultsDisplay
@@ -293,18 +300,6 @@ export default function TypingTest({
         )}
       </AnimatePresence>
 
-      {/* Tab+Enter hint - bottom center */}
-      {/* <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-10">
-        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-4 py-2 rounded-full">
-          <span className="font-mono text-slate-300">tab</span>
-          <span className="text-slate-500">+</span>
-          <span className="font-mono text-slate-300">enter</span>
-          <span className="text-slate-500">-</span>
-          <span className="text-slate-300">
-            {showResults ? "retry test" : "restart test"}
-          </span>
-        </div>
-      </div> */}
       <KeyboardHint label={showResults ? "retry test" : "restart test"} />
     </div>
   );

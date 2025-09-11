@@ -31,7 +31,16 @@ export const metadata: Metadata = {
     "speed typing test",
     "typing speed",
     "best typing site",
+    "typing speed test online",
+    "free typing test",
+    "typing games",
+    "fast typing test",
+    "typing test English",
+    "typing challenge",
+    "improve typing speed",
+    "keyboard typing test",
   ],
+
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -63,8 +72,11 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [`${SITE_URL}/logo.png`],
   },
+  // canonical hint for search engines
+  alternates: {
+    canonical: SITE_URL,
+  },
   other: {
-    // JSON-LD schemas
     "application/ld+json": JSON.stringify([
       {
         "@context": "https://schema.org",
@@ -99,6 +111,10 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
     >
+      <head>
+        {/* Preload the main LCP image so it loads earlier */}
+        <link rel="preload" href="/logo.png" as="image" />
+      </head>
       <body className="font-sans overflow-hidden">
         <ThemeProvider
           attribute="class"

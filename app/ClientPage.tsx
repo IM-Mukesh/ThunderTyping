@@ -2,11 +2,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import TypingTest from "@/components/TypingTest";
+import dynamic from "next/dynamic";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useClientOnly } from "@/hooks/useClientOnly";
 import { ThunderLoader, ThunderLogo } from "@/components/ThunderLogo";
 import Link from "next/link";
+
+const TypingTest = dynamic(() => import("@/components/TypingTest"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center w-full h-full">
+      <ThunderLoader />
+    </div>
+  ),
+});
 
 export default function ClientPage() {
   const isClient = useClientOnly();
@@ -46,16 +55,7 @@ export default function ClientPage() {
       <header className="fixed top-6 left-1/2 transform -translate-x-1/2 w-full max-w-6xl z-[60]">
         <Link href="/" className="flex items-center gap-3 justify-center">
           <ThunderLogo size={42} className="block" />
-          <span
-            className="font-bold text-2xl"
-            style={
-              {
-                /* gradient text */
-              }
-            }
-          >
-            ThunderTyping
-          </span>
+          <span className="font-bold text-2xl">ThunderTyping</span>
         </Link>
       </header>
 
