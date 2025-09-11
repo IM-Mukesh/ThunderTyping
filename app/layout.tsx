@@ -8,17 +8,91 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThunderLoader } from "@/components/ThunderLogo";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://thundertyping.com";
+const SITE_NAME = "ThunderTyping";
+const SITE_DESCRIPTION =
+  "ThunderTyping is the fastest, most accurate online typing test. Check your WPM with a futuristic, distraction-free design. Improve typing speed and accuracy instantly.";
+
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_NAME,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  generator: "ThunderTyping",
+  applicationName: SITE_NAME,
+  keywords: [
+    "typing test",
+    "online typing test",
+    "WPM test",
+    "typing practice",
+    "speed typing test",
+    "typing speed",
+    "best typing site",
+  ],
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
+  },
+  manifest: "/site.webmanifest",
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    siteName: SITE_NAME,
+    url: SITE_URL,
+    type: "website",
+    images: [
+      {
+        url: `${SITE_URL}/logo.png`,
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} logo`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [`${SITE_URL}/logo.png`],
+  },
+  other: {
+    // JSON-LD schemas
+    "application/ld+json": JSON.stringify([
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        name: SITE_NAME,
+        url: SITE_URL,
+        logo: `${SITE_URL}/logo.png`,
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: SITE_NAME,
+        url: SITE_URL,
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SITE_URL}/search?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ]),
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html
       lang="en"
