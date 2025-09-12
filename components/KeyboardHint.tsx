@@ -25,10 +25,10 @@ export default function KeyboardHint({
 }: KeyboardHintProps) {
   return (
     <div
-      className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-10 ${className}`.trim()}
+      className={`fixed bottom-28 left-1/2 transform -translate-x-1/2 z-10 ${className}`.trim()}
       aria-hidden
     >
-      <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-3 py-2 rounded-full">
+      <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-3 py-2 rounded-full whitespace-nowrap">
         <span className="font-mono text-slate-300">tab</span>
         <span className="text-slate-500">+</span>
         <span className="font-mono text-slate-300">enter</span>

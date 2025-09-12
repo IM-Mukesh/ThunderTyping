@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useClientOnly } from "@/hooks/useClientOnly";
-import { ThunderLoader, ThunderLogo } from "@/components/ThunderLogo";
-import Link from "next/link";
+import { ThunderLoader } from "@/components/ThunderLogo";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const TypingTest = dynamic(() => import("@/components/TypingTest"), {
   ssr: false,
@@ -51,50 +52,8 @@ export default function ClientPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center justify-center">
-      {/* Centered logo + text */}
-      <header className="fixed top-6 left-1/2 transform -translate-x-1/2 w-full max-w-6xl z-[60]">
-        <div className="flex items-center justify-between px-6 py-3 bg-transparent">
-          {/* Left side: Logo + Brand */}
-          <Link
-            href="/"
-            className="flex items-center gap-3"
-            aria-label="ThunderTyping home"
-          >
-            <ThunderLogo size={42} className="block text-[#00CFFF]" />
-            <span className="font-bold text-2xl text-[#00CFFF]">
-              ThunderTyping
-            </span>
-          </Link>
-
-          {/* Right side: Navigation */}
-          {/* <nav className="flex items-center gap-8">
-            <Link
-              href="/games"
-              className="text-white hover:text-[#00CFFF] transition-colors"
-            >
-              Games
-            </Link>
-            <Link
-              href="/about"
-              className="text-white hover:text-[#00CFFF] transition-colors"
-            >
-              About
-            </Link>
-            <Link
-              href="/blog"
-              className="text-white hover:text-[#00CFFF] transition-colors"
-            >
-              Blog
-            </Link>
-            <Link
-              href="/setting"
-              className="text-white hover:text-[#00CFFF] transition-colors"
-            >
-              Settings
-            </Link>
-          </nav> */}
-        </div>
-      </header>
+      {/* Reusable Header */}
+      <Header />
 
       {/* TypingTest in center below logo */}
       <div className="w-full max-w-6xl px-6 pb-20 flex-1 flex items-center justify-center">
@@ -103,6 +62,7 @@ export default function ClientPage() {
           onDurationChange={handleDurationChange}
         />
       </div>
+      <Footer />
     </div>
   );
 }
