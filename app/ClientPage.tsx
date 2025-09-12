@@ -53,16 +53,47 @@ export default function ClientPage() {
     <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center justify-center">
       {/* Centered logo + text */}
       <header className="fixed top-6 left-1/2 transform -translate-x-1/2 w-full max-w-6xl z-[60]">
-        <Link
-          href="/"
-          className="flex items-center gap-3 header-brand justify-center text-white" // <-- force text color to white
-          aria-label="ThunderTyping home"
-          style={{ color: "#ffffff" }} // inline fallback for very old browsers / overrides
-        >
-          {/* make sure ThunderLogo uses currentColor (see next section) */}
-          <ThunderLogo size={42} className="block text-white" />
-          <span className="font-bold text-2xl text-white">ThunderTyping</span>
-        </Link>
+        <div className="flex items-center justify-between px-6 py-3 bg-transparent">
+          {/* Left side: Logo + Brand */}
+          <Link
+            href="/"
+            className="flex items-center gap-3"
+            aria-label="ThunderTyping home"
+          >
+            <ThunderLogo size={42} className="block text-[#00CFFF]" />
+            <span className="font-bold text-2xl text-[#00CFFF]">
+              ThunderTyping
+            </span>
+          </Link>
+
+          {/* Right side: Navigation */}
+          {/* <nav className="flex items-center gap-8">
+            <Link
+              href="/games"
+              className="text-white hover:text-[#00CFFF] transition-colors"
+            >
+              Games
+            </Link>
+            <Link
+              href="/about"
+              className="text-white hover:text-[#00CFFF] transition-colors"
+            >
+              About
+            </Link>
+            <Link
+              href="/blog"
+              className="text-white hover:text-[#00CFFF] transition-colors"
+            >
+              Blog
+            </Link>
+            <Link
+              href="/setting"
+              className="text-white hover:text-[#00CFFF] transition-colors"
+            >
+              Settings
+            </Link>
+          </nav> */}
+        </div>
       </header>
 
       {/* TypingTest in center below logo */}

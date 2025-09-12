@@ -8,6 +8,8 @@ import React, {
   useCallback,
 } from "react";
 import Caret from "./Caret";
+import { useSelector } from "react-redux";
+import { RootState } from "../store/store";
 
 interface WordDisplayProps {
   words: string[];
@@ -42,6 +44,12 @@ export function WordDisplay({
   const [mounted, setMounted] = useState(false);
   const [containerWidth, setContainerWidth] = useState(800);
   const [currentLineOffset, setCurrentLineOffset] = useState(0);
+
+  const Fcolor = useSelector(
+    (state: RootState) => state.settings.currentFillColor
+  );
+
+  console.log("fcolor", Fcolor);
   const FILLING_COLOR = "text-white";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const measurerRef = useRef<HTMLSpanElement | null>(null);
