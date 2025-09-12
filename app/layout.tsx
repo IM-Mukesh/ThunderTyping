@@ -1,12 +1,15 @@
+// app/layout.tsx
 import type React from "react";
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
+import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThunderLoader } from "@/components/ThunderLogo";
+import AnalyticsClient from "@/components/AnalyticsClient";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://thundertyping.com";
@@ -40,7 +43,6 @@ export const metadata: Metadata = {
     "improve typing speed",
     "keyboard typing test",
   ],
-
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -72,39 +74,20 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [`${SITE_URL}/logo.png`],
   },
-  // canonical hint for search engines
   alternates: {
     canonical: SITE_URL,
   },
-  other: {
-    "application/ld+json": JSON.stringify([
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        name: SITE_NAME,
-        url: SITE_URL,
-        logo: `${SITE_URL}/logo.png`,
-      },
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        name: SITE_NAME,
-        url: SITE_URL,
-        potentialAction: {
-          "@type": "SearchAction",
-          target: `${SITE_URL}/search?q={search_term_string}`,
-          "query-input": "required name=search_term_string",
-        },
-      },
-    ]),
-  },
 };
+
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const isProd = process.env.NODE_ENV === "production";
+  console.log("is prod", isProd);
   return (
     <html
       lang="en"
@@ -112,8 +95,27 @@ export default function RootLayout({
       className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
     >
       <head>
-        {/* Preload the main LCP image so it loads earlier */}
         <link rel="preload" href="/logo.png" as="image" />
+        {/* ✅ GA loads only in production */}
+        {isProd && GA_ID ? (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="gtag-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}', {
+                  page_path: window.location.pathname,
+                });
+              `}
+            </Script>
+            <link rel="preconnect" href="https://www.googletagmanager.com" />
+          </>
+        ) : null}
       </head>
       <body className="font-sans overflow-hidden">
         <ThemeProvider
@@ -122,7 +124,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Suspense fallback={<ThunderLoader />}>{children}</Suspense>
+          <Suspense fallback={<ThunderLoader />}>
+            {children}
+            {/* ✅ Only track page views in production */}
+            {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
+          </Suspense>
+
+          {/* Vercel Analytics (safe for dev + prod) */}
           <Analytics />
         </ThemeProvider>
       </body>
