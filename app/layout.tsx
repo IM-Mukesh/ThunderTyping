@@ -96,7 +96,20 @@ export default function RootLayout({
     >
       <head>
         <link rel="preload" href="/logo.png" as="image" />
-        {/* ✅ GA loads only in production */}
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="canonical" href="https://thundertyping.com/" />
+        {/* Organization JSON-LD (explicit) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "ThunderTyping",
+              url: "https://thundertyping.com",
+              logo: "https://thundertyping.com/logo.png",
+            }),
+          }}
+        />
         {isProd && GA_ID ? (
           <>
             <Script
@@ -105,18 +118,19 @@ export default function RootLayout({
             />
             <Script id="gtag-init" strategy="afterInteractive">
               {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${GA_ID}', {
-                  page_path: window.location.pathname,
-                });
-              `}
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}', {
+            page_path: window.location.pathname,
+          });
+        `}
             </Script>
             <link rel="preconnect" href="https://www.googletagmanager.com" />
           </>
         ) : null}
       </head>
+
       <body className="font-sans overflow-hidden">
         <ThemeProvider
           attribute="class"
