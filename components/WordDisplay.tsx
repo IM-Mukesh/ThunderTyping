@@ -42,7 +42,7 @@ export function WordDisplay({
   const [mounted, setMounted] = useState(false);
   const [containerWidth, setContainerWidth] = useState(800);
   const [currentLineOffset, setCurrentLineOffset] = useState(0);
-
+  const FILLING_COLOR = "text-white";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const measurerRef = useRef<HTMLSpanElement | null>(null);
   const cleanupRef = useRef(false);
@@ -296,7 +296,7 @@ export function WordDisplay({
                 key={ci}
                 className={
                   isCorrect
-                    ? "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text"
+                    ? FILLING_COLOR
                     : typedCh !== undefined
                     ? "text-red-500"
                     : "text-neutral-400"
@@ -357,7 +357,7 @@ export function WordDisplay({
                   className={
                     typedCh !== undefined
                       ? isCorrect
-                        ? "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text"
+                        ? FILLING_COLOR
                         : "text-red-500"
                       : "text-neutral-300"
                   }
