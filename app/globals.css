@@ -203,3 +203,7 @@ textarea,
     34 211 238
   ); /* cyan similar to ThunderTyping navbar gradient */
 }
+.header-brand,
+.header-brand * {
+  color: #ffffff !important;
+}
