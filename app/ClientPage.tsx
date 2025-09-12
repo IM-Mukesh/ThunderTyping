@@ -62,7 +62,7 @@ export default function ClientPage() {
           onDurationChange={handleDurationChange}
         />
       </div>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }

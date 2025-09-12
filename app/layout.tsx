@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThunderLoader } from "@/components/ThunderLogo";
 import AnalyticsClient from "@/components/AnalyticsClient";
 import Providers from "./providers";
+
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://thundertyping.com";
 const SITE_NAME = "ThunderTyping";
@@ -87,13 +88,52 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const isProd = process.env.NODE_ENV === "production";
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
     >
-      <head>{/* unchanged head */}</head>
+      <head>
+        <link rel="preload" href="/logo.png" as="image" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="canonical" href={SITE_URL} />
+        {/* Organization JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: SITE_NAME,
+              url: SITE_URL,
+              logo: `${SITE_URL}/logo.png`,
+            }),
+          }}
+        />
+        {/* Google Analytics - only include in production and when GA_ID is present */}
+        {isProd && GA_ID ? (
+          <>
+            {/* Preconnect to GTM for slightly faster loading */}
+            <link rel="preconnect" href="https://www.googletagmanager.com" />
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="gtag-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}', {
+                  page_path: window.location.pathname,
+                });
+              `}
+            </Script>
+          </>
+        ) : null}
+      </head>
 
       <body className="font-sans overflow-hidden">
         <ThemeProvider
@@ -105,9 +145,11 @@ export default function RootLayout({
           <Providers>
             <Suspense fallback={<ThunderLoader />}>
               {children}
+              {/* Client-side page view tracking for SPA navigation */}
               {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
             </Suspense>
 
+            {/* Vercel Analytics (works when enabled in Vercel) */}
             <Analytics />
           </Providers>
         </ThemeProvider>

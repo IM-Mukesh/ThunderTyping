@@ -11,10 +11,11 @@ interface HeaderProps {
 }
 
 const NAV_ITEMS = [
-  { href: "/games", label: "Games" },
-  { href: "/about", label: "About" },
-  { href: "/blog", label: "Blog" },
-  { href: "/setting", label: "Settings" },
+  //   { href: "/games", label: "Games" },
+  //   { href: "/about", label: "About" },
+  //   { href: "/blog", label: "Blog" },
+  //   { href: "/setting", label: "Settings" },
+  { href: "/setting", label: "" },
 ];
 
 export default function Header({ className = "" }: HeaderProps) {
@@ -62,7 +63,6 @@ export default function Header({ className = "" }: HeaderProps) {
             ThunderTyping
           </span>
         </Link>
-
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8">
           {NAV_ITEMS.map((item) => (
@@ -75,7 +75,6 @@ export default function Header({ className = "" }: HeaderProps) {
             </Link>
           ))}
         </nav>
-
         {/* Mobile hamburger */}
         <div className="md:hidden flex items-center">
           <button
