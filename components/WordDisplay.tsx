@@ -1,11 +1,11 @@
 "use client";
 
 import React, {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  useCallback,
 } from "react";
 import Caret from "./Caret";
 import { useSelector } from "react-redux";
@@ -25,13 +25,14 @@ interface WordPosition {
   x: number;
   y: number;
   width: number;
-  lineIndex: number; // absolute line index in layout
+  lineIndex: number;
 }
 
-// typography/layout constants
-const FONT_PX = 22;
-const LINE_PX = 44;
+// your chosen values (kept here)
+const FONT_PX = 26;
+const LINE_PX = 50;
 const WORD_SPACING = 16;
+const LETTER_SPACING = 2.4;
 const DEFAULT_VISIBLE_LINES = 3;
 
 export function WordDisplay({
@@ -48,17 +49,18 @@ export function WordDisplay({
   const Fcolor = useSelector(
     (state: RootState) => state.settings.currentFillColor
   );
-
-  console.log("fcolor", Fcolor);
   const FILLING_COLOR = "text-white";
+
+  // IMPORTANT: containerRef refers to the visible container we render into.
   const containerRef = useRef<HTMLDivElement | null>(null);
   const measurerRef = useRef<HTMLSpanElement | null>(null);
   const cleanupRef = useRef(false);
 
-  // Update container width (debounced)
+  // sync container width from the actual visible container
   const updateWidth = useCallback(() => {
     if (containerRef.current && !cleanupRef.current) {
-      setContainerWidth(containerRef.current.offsetWidth);
+      // use clientWidth to respect padding/box-sizing set by parent card
+      setContainerWidth(containerRef.current.clientWidth);
     }
   }, []);
 
@@ -66,22 +68,33 @@ export function WordDisplay({
     setMounted(true);
     cleanupRef.current = false;
 
+    // create hidden measurer and ensure it uses the same typography as the visible container
     if (!measurerRef.current) {
       try {
         const span = document.createElement("span");
         span.style.position = "absolute";
         span.style.visibility = "hidden";
-        span.style.whiteSpace = "nowrap";
+        span.style.whiteSpace = "pre"; // measure spaces as well
         span.style.fontSize = `${FONT_PX}px`;
         span.style.lineHeight = `${LINE_PX}px`;
-        // inherit font family to match real rendering
         (span.style as any).fontFamily = "inherit";
+        span.style.letterSpacing = `${LETTER_SPACING}px`;
         span.style.pointerEvents = "none";
+        span.style.boxSizing = "content-box";
         document.body.appendChild(span);
         measurerRef.current = span;
       } catch (err) {
         console.warn("[WordDisplay] measurer create failed", err);
       }
+    } else {
+      // keep measurer in sync (HMR)
+      try {
+        measurerRef.current.style.fontSize = `${FONT_PX}px`;
+        measurerRef.current.style.lineHeight = `${LINE_PX}px`;
+        measurerRef.current.style.letterSpacing = `${LETTER_SPACING}px`;
+        (measurerRef.current.style as any).fontFamily = "inherit";
+        measurerRef.current.style.whiteSpace = "pre";
+      } catch (_) {}
     }
 
     updateWidth();
@@ -107,87 +120,70 @@ export function WordDisplay({
     };
   }, [updateWidth]);
 
-  // reset offset for new test (when engine resets to word 0)
+  // reset offset for new tests
   useEffect(() => {
-    if (currentWordIndex === 0) {
-      setCurrentLineOffset(0);
-    }
+    if (currentWordIndex === 0) setCurrentLineOffset(0);
   }, [currentWordIndex]);
 
-  // 1) Measure native widths for words (cached; only when words/containerWidth/mount change)
+  const fallbackWidthFor = (text: string) => {
+    const avgChar = FONT_PX * 0.55;
+    const totalLetterSpacing = Math.max(0, (text.length - 1) * LETTER_SPACING);
+    return Math.max(6, Math.floor(text.length * avgChar + totalLetterSpacing));
+  };
+
   const measuredWidths = useMemo(() => {
-    const measurer = measurerRef.current;
-    if (
-      !measurer ||
-      !mounted ||
-      containerWidth === 0 ||
-      !words ||
-      words.length === 0
-    ) {
+    const m = measurerRef.current;
+    if (!m || !mounted || containerWidth === 0 || !words || words.length === 0)
       return new Array<number>(0);
-    }
 
     const arr: number[] = new Array(words.length);
     for (let i = 0; i < words.length; i++) {
       const w = words[i] ?? "";
       try {
-        measurer.textContent = w;
-        const measured = measurer.offsetWidth;
-        arr[i] =
-          measured && measured > 0
-            ? measured
-            : Math.max(10, Math.floor(w.length * FONT_PX * 0.6));
+        m.textContent = w;
+        const measured = m.offsetWidth;
+        arr[i] = measured && measured > 0 ? measured : fallbackWidthFor(w);
       } catch {
-        arr[i] = Math.max(10, Math.floor(w.length * FONT_PX * 0.6));
+        arr[i] = fallbackWidthFor(w);
       }
     }
     return arr;
   }, [words, containerWidth, mounted]);
 
-  // 2) Measure widths for completedInputs (so previously typed-long words keep their space)
   const completedWidths = useMemo(() => {
-    const measurer = measurerRef.current;
-    if (!measurer || !mounted || !completedInputs)
-      return {} as Record<number, number>;
+    const m = measurerRef.current;
+    if (!m || !mounted || !completedInputs) return {} as Record<number, number>;
     const map: Record<number, number> = {};
     for (let i = 0; i < completedInputs.length; i++) {
       const t = completedInputs[i] ?? "";
       if (!t) continue;
       try {
-        measurer.textContent = t;
-        const measured = measurer.offsetWidth;
-        map[i] =
-          measured && measured > 0
-            ? measured
-            : Math.max(10, Math.floor(t.length * FONT_PX * 0.6));
+        m.textContent = t;
+        const measured = m.offsetWidth;
+        map[i] = measured && measured > 0 ? measured : fallbackWidthFor(t);
       } catch {
-        map[i] = Math.max(10, Math.floor(t.length * FONT_PX * 0.6));
+        map[i] = fallbackWidthFor(t);
       }
     }
     return map;
-    // include containerWidth so small font changes get recalculated on resize
   }, [completedInputs, mounted, containerWidth]);
 
-  // 3) Measure currentInput width (every keystroke)
   const currentTypedWidth = useMemo(() => {
-    const measurer = measurerRef.current;
-    if (!measurer || !mounted) return 0;
+    const m = measurerRef.current;
+    if (!m || !mounted) return 0;
     try {
-      measurer.textContent = currentInput ?? "";
-      const measured = measurer.offsetWidth;
+      // measure exactly what's visible as typed for the current word
+      m.textContent = currentInput ?? "";
+      const measured = m.offsetWidth;
       return measured && measured > 0
         ? measured
-        : Math.max(10, Math.floor((currentInput?.length || 0) * FONT_PX * 0.6));
+        : fallbackWidthFor(currentInput ?? "");
     } catch {
-      return Math.max(
-        10,
-        Math.floor((currentInput?.length || 0) * FONT_PX * 0.6)
-      );
+      return fallbackWidthFor(currentInput ?? "");
     }
   }, [currentInput, mounted, containerWidth]);
 
-  // 4) Build absolute positions using effective widths (accounting for typed extras)
-  //    Depend on measuredWidths, completedWidths, and currentTypedWidth so positions update responsively.
+  // build absolute positions using effective widths
   const wordPositions = useMemo(() => {
     if (!measuredWidths || measuredWidths.length === 0)
       return [] as WordPosition[];
@@ -199,25 +195,19 @@ export function WordDisplay({
 
     for (let i = 0; i < measuredWidths.length; i++) {
       const w = words[i] ?? "";
-      const baseWidth =
-        measuredWidths[i] ?? Math.max(10, Math.floor(w.length * FONT_PX * 0.6));
+      const baseWidth = measuredWidths[i] ?? fallbackWidthFor(w);
 
-      // Effective width includes typed text for completed/current words
       let effectiveWidth = baseWidth;
-
-      // Completed typed text (if any) may be wider than original word; use that
       if (completedWidths[i] !== undefined) {
         effectiveWidth = Math.max(effectiveWidth, completedWidths[i]);
       }
 
-      // For current word, consider currentInput typed width (includes extras)
       if (i === currentWordIndex) {
         if ((currentInput?.length ?? 0) > 0) {
           effectiveWidth = Math.max(effectiveWidth, currentTypedWidth);
         }
       }
 
-      // wrap to next line if needed
       if (curX + effectiveWidth > containerWidth && curX > 0) {
         curX = 0;
         curY += LINE_PX;
@@ -247,35 +237,38 @@ export function WordDisplay({
     currentWordIndex,
   ]);
 
-  // 5) Scrolling logic: if current word goes below second visible line, scroll exactly one line.
+  // scroll logic
   useEffect(() => {
     if (!wordPositions || wordPositions.length === 0) return;
     if (currentWordIndex < 0 || currentWordIndex >= wordPositions.length)
       return;
-
     const pos = wordPositions[currentWordIndex];
     if (!pos) return;
-
-    // relative top of current word inside the visible window
     const relativeTop = pos.y - currentLineOffset * LINE_PX;
-
-    // If current word goes below the start of the 3rd row (index 2), scroll one line
-    // so the current word will appear at second visible line start.
     if (relativeTop >= LINE_PX * 2) {
       setCurrentLineOffset((prev) => prev + 1);
       return;
     }
-
-    // If current word moved above the visible area, snap it into view (scroll up).
     if (relativeTop < 0) {
       const targetLine = pos.lineIndex;
       setCurrentLineOffset(Math.max(0, targetLine));
       return;
     }
-    // otherwise no change
   }, [wordPositions, currentWordIndex, currentLineOffset, visibleLines]);
 
-  // Helper to render a single word with typed styling
+  // caret offset measured for current typed string
+  const caretOffsetForCurrent = useMemo(() => {
+    const m = measurerRef.current;
+    if (!m || !mounted) return 0;
+    try {
+      // measure substring up to caret (current word's typed content)
+      m.textContent = currentInput ?? "";
+      return m.offsetWidth || 0;
+    } catch {
+      return 0;
+    }
+  }, [currentInput, mounted, containerWidth, currentWordIndex]);
+
   const renderWord = (pos: WordPosition) => {
     const { word, index } = pos;
     const top = pos.y - currentLineOffset * LINE_PX;
@@ -284,16 +277,17 @@ export function WordDisplay({
       left: pos.x,
       top,
       whiteSpace: "pre",
+      fontSize: `${FONT_PX}px`,
+      lineHeight: `${LINE_PX}px`,
+      letterSpacing: `${LETTER_SPACING}px`,
     };
 
-    // Already-completed words: show each char colored by correctness; show extras (if any)
     if (index < currentWordIndex) {
       const typed = completedInputs[index] ?? "";
-
       return (
         <span
           key={index}
-          className="inline-flex items-center mr-4 whitespace-pre"
+          className="inline-flex items-center whitespace-pre"
           style={style}
         >
           {word.split("").map((ch, ci) => {
@@ -309,6 +303,7 @@ export function WordDisplay({
                     ? "text-red-500"
                     : "text-neutral-400"
                 }
+                style={{ display: "inline-block" }}
               >
                 {ch}
               </span>
@@ -336,47 +331,38 @@ export function WordDisplay({
       );
     }
 
-    // Current word being typed
     if (index === currentWordIndex) {
       const typed = currentInput ?? "";
       const chars = word.split("");
-
-      // Case A: typed inside word (typed.length <= word.length)
-      // Case B: typed overflow/extras (typed.length > word.length)
-      const inWord = typed.length <= chars.length;
       const extras =
         typed.length > chars.length ? typed.slice(chars.length) : "";
 
       return (
         <span
           key={index}
-          className="inline-flex items-center mr-4 whitespace-pre"
+          className="inline-flex items-center whitespace-pre"
           style={style}
         >
           {chars.map((ch, ci) => {
             const typedCh = typed[ci];
             const isCorrect = typedCh !== undefined && typedCh === ch;
-            const showCaretHere = mounted && ci === typed.length && inWord;
-
             return (
-              <React.Fragment key={ci}>
-                {showCaretHere && <Caret height={24} width={2} />}
-                <span
-                  className={
-                    typedCh !== undefined
-                      ? isCorrect
-                        ? FILLING_COLOR
-                        : "text-red-500"
-                      : "text-neutral-300"
-                  }
-                >
-                  {ch}
-                </span>
-              </React.Fragment>
+              <span
+                key={ci}
+                className={
+                  typedCh !== undefined
+                    ? isCorrect
+                      ? FILLING_COLOR
+                      : "text-red-500"
+                    : "text-neutral-300"
+                }
+                style={{ display: "inline-block" }}
+              >
+                {ch}
+              </span>
             );
           })}
 
-          {/* If typed at or beyond word end, show extras inline and then caret after extras */}
           {extras.length > 0 &&
             extras.split("").map((ex, ei) => (
               <span
@@ -392,20 +378,14 @@ export function WordDisplay({
                 {ex}
               </span>
             ))}
-
-          {/* Caret after extras (or after word when fully typed) */}
-          {mounted && typed.length >= chars.length && (
-            <Caret height={24} width={2} />
-          )}
         </span>
       );
     }
 
-    // Future words (not yet typed)
     return (
       <span
         key={index}
-        className="inline-flex items-center mr-4 text-neutral-400 whitespace-pre"
+        className="inline-flex items-center text-neutral-400 whitespace-pre"
         style={style}
       >
         {word}
@@ -415,22 +395,32 @@ export function WordDisplay({
 
   if (!mounted) {
     return (
-      <div className="w-full max-w-4xl mx-auto h-32 flex items-center justify-center">
+      <div className="w-full mx-auto h-32 flex items-center justify-center">
         <div className="text-neutral-400">Loading words...</div>
       </div>
     );
   }
 
+  const currentPos = wordPositions?.[currentWordIndex] ?? null;
+  const currentVisible =
+    currentPos &&
+    (() => {
+      const relativeY = currentPos.y - currentLineOffset * LINE_PX;
+      return relativeY >= -LINE_PX && relativeY < LINE_PX * visibleLines;
+    })();
+
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    // fill the parent card width so parent controls left/right padding
+    <div className="w-full" ref={containerRef}>
       <div
-        ref={containerRef}
         className="relative overflow-hidden text-white"
         style={{
           height: LINE_PX * visibleLines,
           fontSize: `${FONT_PX}px`,
           lineHeight: `${LINE_PX}px`,
+          letterSpacing: `${LETTER_SPACING}px`,
           transition: "transform .14s ease",
+          boxSizing: "border-box",
         }}
         role="region"
         aria-label="Typing area"
@@ -443,6 +433,23 @@ export function WordDisplay({
           }
           return null;
         })}
+
+        {currentVisible && currentPos && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: currentPos.x + caretOffsetForCurrent,
+              top: currentPos.y - currentLineOffset * LINE_PX,
+              height: LINE_PX,
+              pointerEvents: "none",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <Caret height={Math.round(FONT_PX)} width={2} />
+          </div>
+        )}
       </div>
     </div>
   );

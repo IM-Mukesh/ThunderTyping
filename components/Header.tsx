@@ -49,7 +49,7 @@ export default function Header({ className = "" }: HeaderProps) {
 
   return (
     <header
-      className={`fixed top-6 left-1/2 transform -translate-x-1/2 w-full max-w-6xl z-[60] ${className}`}
+      className={`fixed top-2 left-1/2 transform -translate-x-1/2 w-full  max-w-6xl z-[60] ${className}`}
     >
       <div className="flex items-center justify-between px-6 py-3 bg-transparent">
         {/* Left: Logo + Brand */}
