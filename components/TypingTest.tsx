@@ -300,7 +300,7 @@ export default function TypingTest({
         )}
       </AnimatePresence>
 
-      <KeyboardHint label={showResults ? "retry test" : "restart test"} />
+      <KeyboardHint label={showResults ? "Retry Test" : "Restart Test"} />
     </div>
   );
 }

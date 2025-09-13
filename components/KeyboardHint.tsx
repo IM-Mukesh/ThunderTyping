@@ -1,4 +1,6 @@
 // components/KeyboardHint.tsx
+"use client";
+
 import React from "react";
 
 interface KeyboardHintProps {
@@ -15,9 +17,7 @@ interface KeyboardHintProps {
 }
 
 /**
- * Reusable Tab + Enter keyboard hint.
- * Use the same component both in TypingTest (global) and in ResultsDisplay (overlay)
- * to keep consistent appearance.
+ * Reusable Tab + Enter keyboard hint with moving line border.
  */
 export default function KeyboardHint({
   className = "",
@@ -25,15 +25,19 @@ export default function KeyboardHint({
 }: KeyboardHintProps) {
   return (
     <div
-      className={`fixed bottom-28 left-1/2 transform -translate-x-1/2 z-10 ${className}`.trim()}
+      className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 z-10 ${className}`.trim()}
       aria-hidden
     >
-      <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-3 py-2 rounded-full whitespace-nowrap">
-        <span className="font-mono text-slate-300">tab</span>
+      <div className="relative flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-3 py-2 rounded-full whitespace-nowrap">
+        {/* Moving gradient line on border */}
+        <div className="absolute inset-0 rounded-full" />
+
+        {/* Original content - unchanged */}
+        <span className="font-mono text-slate-300">Tab</span>
         <span className="text-slate-500">+</span>
-        <span className="font-mono text-slate-300">enter</span>
+        <span className="font-mono text-slate-300">Enter</span>
         <span className="text-slate-500">-</span>
-        <span className="text-slate-300">{label ?? "restart test"}</span>
+        <span className="text-slate-300">{label ?? "Restart test"}</span>
       </div>
     </div>
   );

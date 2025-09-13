@@ -96,9 +96,34 @@ export default function RootLayout({
       className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
     >
       <head>
+        {/* Preload important images */}
         <link rel="preload" href="/logo.png" as="image" />
+
+        {/* Favicons (explicit) */}
         <link rel="icon" href="/favicon.ico" />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/favicon-32x32.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/favicon-16x16.png"
+        />
+        <link
+          rel="apple-touch-icon"
+          sizes="180x180"
+          href="/apple-touch-icon.png"
+        />
+        <link rel="manifest" href="/site.webmanifest" />
+        <meta name="msapplication-TileImage" content="/icon-512.png" />
+        <meta name="theme-color" content="#0f172a" />
+
         <link rel="canonical" href={SITE_URL} />
+
         {/* Organization JSON-LD */}
         <script
           type="application/ld+json"
@@ -112,6 +137,7 @@ export default function RootLayout({
             }),
           }}
         />
+
         {/* Google Analytics - only include in production and when GA_ID is present */}
         {isProd && GA_ID ? (
           <>
@@ -135,6 +161,7 @@ export default function RootLayout({
         ) : null}
       </head>
 
+      {/* NOTE: removed overflow-hidden; use overflow-auto so pages can scroll */}
       <body className="font-sans overflow-hidden">
         <ThemeProvider
           attribute="class"
