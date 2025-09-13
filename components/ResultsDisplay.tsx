@@ -110,7 +110,7 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
           {/* Header */}
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-semibold text-white leading-tight">
-              Results
+              Result
             </h2>
             <p className="text-sm text-neutral-400 mt-2">
               Duration: {durationText}

@@ -296,14 +296,15 @@ export function WordDisplay({
             return (
               <span
                 key={ci}
-                className={
-                  isCorrect
-                    ? FILLING_COLOR
+                className={undefined}
+                style={{
+                  display: "inline-block",
+                  color: isCorrect
+                    ? "#ffffff" // completed & correct: mid-contrast
                     : typedCh !== undefined
-                    ? "text-red-500"
-                    : "text-neutral-400"
-                }
-                style={{ display: "inline-block" }}
+                    ? "#ef4444" // red-500 for wrong characters
+                    : "rgba(255,255,255,0.45)", // fallback if weird
+                }}
               >
                 {ch}
               </span>
@@ -337,6 +338,9 @@ export function WordDisplay({
       const extras =
         typed.length > chars.length ? typed.slice(chars.length) : "";
 
+      // has the user typed at least one character for this word?
+      const hasStartedTyping = typed.length > 0;
+
       return (
         <span
           key={index}
@@ -346,33 +350,65 @@ export function WordDisplay({
           {chars.map((ch, ci) => {
             const typedCh = typed[ci];
             const isCorrect = typedCh !== undefined && typedCh === ch;
-            return (
-              <span
-                key={ci}
-                className={
-                  typedCh !== undefined
-                    ? isCorrect
-                      ? FILLING_COLOR
-                      : "text-red-500"
-                    : "text-neutral-300"
-                }
-                style={{ display: "inline-block" }}
-              >
-                {ch}
-              </span>
-            );
+
+            // If user hasn't started typing this word, render every char faint.
+            if (!hasStartedTyping) {
+              return (
+                <span
+                  key={ci}
+                  style={{
+                    display: "inline-block",
+                    color: "rgba(255, 255, 255, 0.25)", // faint until typing begins
+                  }}
+                >
+                  {ch}
+                </span>
+              );
+            }
+
+            // User has started typing: only typed chars should be highlighted.
+            // Untyped chars remain faint.
+            if (typedCh !== undefined) {
+              // typed character: show correct or error color
+              return (
+                <span
+                  key={ci}
+                  style={{
+                    display: "inline-block",
+                    color: isCorrect
+                      ? "#ffffff" // typed & correct: almost white
+                      : "#ef4444", // typed & wrong: red
+                  }}
+                >
+                  {ch}
+                </span>
+              );
+            } else {
+              // not yet typed character in the active word: keep faint
+              return (
+                <span
+                  key={ci}
+                  style={{
+                    display: "inline-block",
+                    color: "rgba(255, 255, 255, 0.25)", // stays faint
+                  }}
+                >
+                  {ch}
+                </span>
+              );
+            }
           })}
 
           {extras.length > 0 &&
             extras.split("").map((ex, ei) => (
               <span
                 key={"extra-cur-" + ei}
-                className="text-red-500 relative"
                 style={{
                   display: "inline-block",
                   overflow: "hidden",
                   maxWidth: "20px",
                   fontSize: "0.9em",
+                  color: "#ef4444",
                 }}
               >
                 {ex}
@@ -385,8 +421,11 @@ export function WordDisplay({
     return (
       <span
         key={index}
-        className="inline-flex items-center text-neutral-400 whitespace-pre"
-        style={style}
+        className="inline-flex items-center  whitespace-pre"
+        style={{
+          ...style,
+          color: "rgba(255, 255, 255, 0.25)", // faint untyped words
+        }}
       >
         {word}
       </span>
@@ -413,7 +452,7 @@ export function WordDisplay({
     // fill the parent card width so parent controls left/right padding
     <div className="w-full" ref={containerRef}>
       <div
-        className="relative overflow-hidden text-white"
+        className="relative overflow-hidden "
         style={{
           height: LINE_PX * visibleLines,
           fontSize: `${FONT_PX}px`,
