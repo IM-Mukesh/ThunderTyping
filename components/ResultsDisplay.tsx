@@ -1,6 +1,5 @@
 "use client";
 import React, { useMemo } from "react";
-import KeyboardHint from "@/components/KeyboardHint";
 
 interface ResultsDisplayProps {
   grossWpm: number;
@@ -60,10 +59,6 @@ function formatDuration(d: number) {
   return `${d}s`;
 }
 
-function percent(n: number) {
-  return `${Math.round(n * 100)}%`;
-}
-
 const ResultsDisplay = React.memo(function ResultsDisplay({
   grossWpm,
   netWpm,
@@ -93,23 +88,29 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
   );
 
   return (
-    <div className="w-full min-h-[420px] flex items-center justify-center p-6">
-      <div className="relative max-w-[1100px] w-full">
+    <div className="w-full flex items-center justify-center p-6">
+      {/* constrain height and allow scroll on small screens so layout is responsive */}
+      <div
+        className="relative max-w-[1100px] w-full overflow-auto"
+        style={{
+          // ensure the panel never grows larger than the viewport space (overlay accounts for footer)
+          maxHeight: "calc(100vh - var(--footer-height, 64px) - 48px)", // 48px buffer for comfortable spacing
+        }}
+      >
         {/* Outer panel */}
         <div
           className="relative rounded-2xl bg-neutral-900/85 border"
-          // Tailwind approximations for your styles; use arbitrary values where needed
           style={{
             borderColor: "rgba(120,120,125,0.12)",
-            padding: "40px 48px",
+            padding: "40px 24px",
             boxShadow:
               "0 8px 36px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02)",
             zIndex: 5,
           }}
         >
           {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-semibold text-white leading-tight">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl md:text-3xl font-semibold text-white leading-tight">
               Result
             </h2>
             <p className="text-sm text-neutral-400 mt-2">
@@ -118,7 +119,7 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
           </div>
 
           {/* Primary metrics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <MetricCard
               title="Net WPM"
               hoverContent={
@@ -130,7 +131,7 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
                 </>
               }
             >
-              <div className="text-4xl font-mono font-bold text-cyan-400 mb-2">
+              <div className="text-3xl md:text-4xl font-mono font-bold text-cyan-400 mb-1">
                 {netWpm}
               </div>
               <div className="text-xs text-neutral-500">
@@ -149,7 +150,7 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
                 </>
               }
             >
-              <div className="text-4xl font-mono font-bold text-emerald-300 mb-2">
+              <div className="text-3xl md:text-4xl font-mono font-bold text-emerald-300 mb-1">
                 {Math.round(accuracy * 100)}%
               </div>
               <div className="text-xs text-neutral-500">
@@ -168,7 +169,7 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
                 </>
               }
             >
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-emerald-300">
                     ✓
@@ -194,7 +195,7 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
             </MetricCard>
           </div>
 
-          {/* Actions (use direct handlers, not inline wrappers) */}
+          {/* Actions (center) */}
           <div className="flex items-center justify-center gap-4 mt-2">
             <button
               aria-label="Retry test"
@@ -208,7 +209,7 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
                 height="20"
                 viewBox="0 0 24 24"
                 fill="none"
-                className="text-cyan-400"
+                aria-hidden
               >
                 <path
                   d="M21 12a9 9 0 10-8.94 9"
@@ -240,9 +241,6 @@ const ResultsDisplay = React.memo(function ResultsDisplay({
           }}
         />
       </div>
-
-      {/* keyboard hint */}
-      <KeyboardHint className="!fixed !bottom-8" label="retry test" />
     </div>
   );
 });

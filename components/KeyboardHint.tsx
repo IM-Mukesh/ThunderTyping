@@ -1,38 +1,74 @@
 // components/KeyboardHint.tsx
 "use client";
 
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { RefreshCcw } from "lucide-react";
 
 interface KeyboardHintProps {
-  /**
-   * Optional extra className to control positioning.
-   * Default is the fixed bottom-center style used on the homepage.
-   */
   className?: string;
-  /**
-   * Optional label text to show after the keys.
-   * Defaults to "restart test" or "retry test" can be changed by parent.
-   */
   label?: React.ReactNode;
+  onRestart?: () => void;
+  /** breakpoint (px) to consider "mobile" — default 768 (Tailwind md) */
+  mobileBreakpoint?: number;
 }
 
-/**
- * Reusable Tab + Enter keyboard hint with moving line border.
- */
 export default function KeyboardHint({
   className = "",
   label,
+  onRestart,
+  mobileBreakpoint = 768,
 }: KeyboardHintProps) {
-  return (
-    <div
-      className={`fixed bottom-20 left-1/2 transform -translate-x-1/2 z-10 ${className}`.trim()}
-      aria-hidden
-    >
-      <div className="relative flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-3 py-2 rounded-full whitespace-nowrap">
-        {/* Moving gradient line on border */}
-        <div className="absolute inset-0 rounded-full" />
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.innerWidth < mobileBreakpoint : false
+  );
 
-        {/* Original content - unchanged */}
+  // Debounced resize handler
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let tid: number | null = null;
+    const onResize = () => {
+      if (tid) window.clearTimeout(tid);
+      tid = window.setTimeout(() => {
+        setIsMobile(window.innerWidth < mobileBreakpoint);
+        tid = null;
+      }, 120);
+    };
+    window.addEventListener("resize", onResize);
+    // also handle orientationchange (mobile rotate)
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      if (tid) window.clearTimeout(tid);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, [mobileBreakpoint]);
+
+  const handleClick = useCallback(() => {
+    if (typeof onRestart === "function") {
+      onRestart();
+      return;
+    }
+    try {
+      window.location.reload();
+    } catch {
+      /* ignore */
+    }
+  }, [onRestart]);
+
+  // position above footer which should set --footer-height; fallback 64px
+  const bottomOffset = "calc(var(--footer-height, 64px) + 12px)";
+
+  // Desktop pill (only shown when NOT mobile)
+  const DesktopPill = (
+    <div
+      aria-hidden
+      className={`fixed z-40 left-1/2 transform -translate-x-1/2 ${className}`}
+      style={{ bottom: bottomOffset }}
+    >
+      <div
+        className="relative flex items-center gap-2 text-xs text-slate-400 bg-slate-800/60 backdrop-blur-md px-3 py-2 rounded-full whitespace-nowrap"
+        role="note"
+      >
         <span className="font-mono text-slate-300">Tab</span>
         <span className="text-slate-500">+</span>
         <span className="font-mono text-slate-300">Enter</span>
@@ -41,4 +77,30 @@ export default function KeyboardHint({
       </div>
     </div>
   );
+
+  // Mobile refresh icon (transparent background, pointer cursor)
+  const MobileIcon = (
+    <button
+      onClick={handleClick}
+      aria-label="Restart test"
+      className={`fixed z-40 left-1/2 transform -translate-x-1/2 ${className}`}
+      style={{
+        bottom: bottomOffset,
+        width: 44,
+        height: 44,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: "50%",
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        cursor: "pointer",
+      }}
+    >
+      <RefreshCcw size={20} className="text-slate-200" />
+    </button>
+  );
+
+  return <>{isMobile ? MobileIcon : DesktopPill}</>;
 }

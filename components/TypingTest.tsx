@@ -6,7 +6,6 @@ import { useTypingEngine } from "@/hooks/useTypingEngine";
 import TimerDisplay from "./TimerDisplay";
 import TimeSelector from "./TimeSelector";
 import WordDisplay from "./WordDisplay";
-// import ResultsDisplay from "./ResultsDisplay";
 import dynamic from "next/dynamic";
 const ResultsDisplay = dynamic(() => import("./ResultsDisplay"), {
   ssr: false,
@@ -53,10 +52,9 @@ export default function TypingTest({
   const cleanupRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Focus input after mount/hydration (small delay ensures hydration complete)
+  // Focus input after mount/hydration
   useEffect(() => {
     cleanupRef.current = false;
-    // small delay to ensure hydration complete; 0ms timeout used intentionally
     const t = setTimeout(() => {
       if (!cleanupRef.current) {
         inputRef.current?.focus?.();
@@ -68,42 +66,28 @@ export default function TypingTest({
     };
   }, []);
 
-  // === ADDED SAFETY-NET: dispatch resize on next rAF and after fonts ready ===
-  // This helps third-party or custom measurement logic (and older components) re-run
-  // their layout calculations once the page has painted and once fonts have loaded.
+  // Ensure layout measurements run after paint and after fonts load
   useEffect(() => {
-    // dispatch on next paint
     requestAnimationFrame(() => {
       try {
         window.dispatchEvent(new Event("resize"));
-      } catch (e) {
-        // ignore - defensive
-      }
+      } catch {}
     });
 
-    // dispatch once fonts are ready (prevents FOIT/flash-of-incorrect-measure)
     try {
       (document as any).fonts?.ready
         ?.then(() => {
           try {
             window.dispatchEvent(new Event("resize"));
-          } catch (e) {
-            /* ignore */
-          }
+          } catch {}
         })
-        .catch(() => {
-          /* ignore */
-        });
-    } catch (e) {
-      // ignore for older browsers/environments
-    }
+        .catch(() => {});
+    } catch {}
     // run once
   }, []);
-  // =====================================================================
 
   useEffect(() => {
     if (isFinished && !showResults) {
-      // avoid layout thrash: set state, let animation handle scroll/focus
       setShowResults(true);
     }
   }, [isFinished, showResults]);
@@ -111,7 +95,6 @@ export default function TypingTest({
   const handleRetry = useCallback(() => {
     setShowResults(false);
     resetTest();
-    // small delay to allow re-render before focusing
     setTimeout(() => {
       if (!cleanupRef.current) {
         inputRef.current?.focus?.();
@@ -240,7 +223,7 @@ export default function TypingTest({
           damping: 20,
           duration: 0.9,
         }}
-        style={{ willChange: "transform, opacity" }} // hint to browser for animation
+        style={{ willChange: "transform, opacity" }}
       >
         <AnimatePresence mode="wait">
           {!showResults && (
@@ -251,12 +234,10 @@ export default function TypingTest({
               transition={{ duration: 0.25 }}
               ref={containerRef}
               onClick={handleWrapperClick}
-              // Added min-w-0 here to avoid flex-shrink issues in parent containers
               className="mx-auto w-full min-w-0 rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm 
                          px-3 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8"
               style={{ minHeight: 260, willChange: "transform, opacity" }}
             >
-              {/* Main typing area container */}
               <div className="w-full">
                 <WordDisplay
                   words={words}
@@ -297,7 +278,7 @@ export default function TypingTest({
         </AnimatePresence>
       </motion.div>
 
-      {/* Results overlay */}
+      {/* Results overlay (now respects footer height so footer remains visible) */}
       <AnimatePresence>
         {showResults && (
           <motion.div
@@ -311,8 +292,12 @@ export default function TypingTest({
               damping: 20,
               duration: 1.0,
             }}
-            className="fixed inset-0 flex items-center justify-center bg-black/95 backdrop-blur-sm z-40"
-            style={{ willChange: "transform, opacity" }}
+            // Do not use inset-0 here — keep footer visible using bottom var
+            className="fixed left-0 right-0 top-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-40"
+            style={{
+              bottom: "var(--footer-height, 64px)",
+              willChange: "transform, opacity",
+            }}
           >
             <div className="w-full max-w-6xl mx-auto px-6 mt-6">
               <ResultsDisplay
@@ -335,7 +320,11 @@ export default function TypingTest({
         )}
       </AnimatePresence>
 
-      <KeyboardHint label={showResults ? "Retry Test" : "Restart Test"} />
+      {/* Single global KeyboardHint for this page only */}
+      <KeyboardHint
+        label={showResults ? "Retry Test" : "Restart Test"}
+        onRestart={showResults ? handleRetry : resetTest}
+      />
     </div>
   );
 }

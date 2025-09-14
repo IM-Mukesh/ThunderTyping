@@ -1,4 +1,3 @@
-// components/Footer.tsx
 "use client";
 
 import React from "react";
@@ -17,43 +16,23 @@ interface FooterProps {
   className?: string;
 }
 
+/**
+ * NOTE:
+ * The footer sets a CSS custom property --footer-height which the KeyboardHint
+ * uses to position itself above the footer so it won't overlap.
+ */
 const LINKS = [
-  {
-    href: "/contact",
-    label: "contact",
-    icon: Mail,
-    external: false,
-  },
-  {
-    href: "/support",
-    label: "support",
-    icon: HelpCircle,
-    external: false,
-  },
+  { href: "/contact", label: "contact", icon: Mail, external: false },
+  { href: "/support", label: "support", icon: HelpCircle, external: false },
   {
     href: "https://github.com/IM-Mukesh/ThunderTyping",
     label: "github",
     icon: Github,
     external: true,
   },
-  {
-    href: "/terms",
-    label: "terms",
-    icon: FileText,
-    external: false,
-  },
-  {
-    href: "/security",
-    label: "security",
-    icon: Shield,
-    external: false,
-  },
-  {
-    href: "/privacy",
-    label: "privacy",
-    icon: FileText,
-    external: false,
-  },
+  { href: "/terms", label: "terms", icon: FileText, external: false },
+  { href: "/security", label: "security", icon: Shield, external: false },
+  { href: "/privacy", label: "privacy", icon: FileText, external: false },
 ];
 
 export default function Footer({ className = "" }: FooterProps) {
@@ -70,26 +49,32 @@ export default function Footer({ className = "" }: FooterProps) {
 
   const item = {
     hidden: { opacity: 0, y: 4 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+    show: { opacity: 1, y: 0, transition: { duration: 0.18 } },
   };
+
+  // Set footer height as a CSS variable so other components (KeyboardHint) can
+  // position themselves relative to it. Adjust the value to match your design.
+  const footerHeight = "64px";
 
   return (
     <motion.footer
-      className={`w-full from-neutral-900 via-neutral-950 to-black text-neutral-400 ${className} flex justify-center items-center py-2`}
+      aria-label="Site footer"
+      // put footer height into a CSS variable for other components to read
+      style={{ ["--footer-height" as any]: footerHeight }}
       initial={reduce ? undefined : "hidden"}
       animate={reduce ? undefined : "show"}
       variants={container}
-      aria-label="Site footer"
+      className={`w-full text-neutral-400 ${className} z-20 `}
     >
-      <div className="max-w-6xl mx-auto px-4 py-2">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4 text-[13px] leading-none">
-          {/* Left: link row */}
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-[12px] sm:text-[13px] leading-none">
+          {/* Left block: links */}
           <motion.ul
-            className="flex flex-wrap justify-center md:justify-start items-center gap-4"
+            className="flex flex-wrap items-center gap-3 sm:gap-4"
             variants={container}
           >
             {LINKS.slice(0, 3).map((l) => {
-              const IconComponent = l.icon;
+              const Icon = l.icon;
               return (
                 <motion.li key={l.label} variants={item}>
                   {l.external ? (
@@ -97,24 +82,26 @@ export default function Footer({ className = "" }: FooterProps) {
                       href={l.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 hover:text-[#00CFFF] transition-colors group"
+                      className="flex items-center gap-2 hover:text-[#00CFFF] transition-colors group cursor-pointer"
+                      aria-label={l.label}
                     >
-                      <IconComponent
+                      <Icon
                         size={14}
                         className="group-hover:scale-110 transition-transform duration-200"
                       />
-                      <span>{l.label}</span>
+                      <span className="text-[12px]">{l.label}</span>
                     </a>
                   ) : (
                     <Link
                       href={l.href}
-                      className="flex items-center gap-1.5 hover:text-[#00CFFF] transition-colors group"
+                      className="flex items-center gap-2 hover:text-[#00CFFF] transition-colors group cursor-pointer"
+                      aria-label={l.label}
                     >
-                      <IconComponent
+                      <Icon
                         size={14}
                         className="group-hover:scale-110 transition-transform duration-200"
                       />
-                      <span>{l.label}</span>
+                      <span className="text-[12px]">{l.label}</span>
                     </Link>
                   )}
                 </motion.li>
@@ -122,13 +109,13 @@ export default function Footer({ className = "" }: FooterProps) {
             })}
           </motion.ul>
 
-          {/* Right: policy links */}
+          {/* Right block: policy links */}
           <motion.ul
-            className="flex flex-wrap justify-center md:justify-end items-center gap-4"
+            className="flex flex-wrap items-center gap-3 sm:gap-4"
             variants={container}
           >
             {LINKS.slice(3).map((l) => {
-              const IconComponent = l.icon;
+              const Icon = l.icon;
               return (
                 <motion.li key={l.label} variants={item}>
                   {l.external ? (
@@ -136,24 +123,26 @@ export default function Footer({ className = "" }: FooterProps) {
                       href={l.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 hover:text-[#00CFFF] transition-colors group"
+                      className="flex items-center gap-2 hover:text-[#00CFFF] transition-colors group cursor-pointer"
+                      aria-label={l.label}
                     >
-                      <IconComponent
+                      <Icon
                         size={14}
                         className="group-hover:scale-110 transition-transform duration-200"
                       />
-                      <span>{l.label}</span>
+                      <span className="text-[12px]">{l.label}</span>
                     </a>
                   ) : (
                     <Link
                       href={l.href}
-                      className="flex items-center gap-1.5 hover:text-[#00CFFF] transition-colors group"
+                      className="flex items-center gap-2 hover:text-[#00CFFF] transition-colors group cursor-pointer"
+                      aria-label={l.label}
                     >
-                      <IconComponent
+                      <Icon
                         size={14}
                         className="group-hover:scale-110 transition-transform duration-200"
                       />
-                      <span>{l.label}</span>
+                      <span className="text-[12px]">{l.label}</span>
                     </Link>
                   )}
                 </motion.li>
@@ -162,17 +151,13 @@ export default function Footer({ className = "" }: FooterProps) {
           </motion.ul>
         </div>
 
-        {/* Small centered copyright with heart icon */}
+        {/* Small copyright with heart */}
         <motion.div
-          className="mt-2 text-center text-[12px] text-neutral-500 flex items-center justify-center gap-1"
+          className="mt-2 text-center text-[11px] sm:text-[12px] text-neutral-500 flex items-center justify-center gap-1"
           variants={item}
         >
           <span>© {new Date().getFullYear()} ThunderTyping — made with</span>
-          <Heart
-            size={12}
-            className="text-red-400 animate-pulse"
-            fill="currentColor"
-          />
+          <Heart size={12} className="text-red-400" fill="currentColor" />
           <span>care.</span>
         </motion.div>
       </div>
