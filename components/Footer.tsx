@@ -22,17 +22,17 @@ interface FooterProps {
  * uses to position itself above the footer so it won't overlap.
  */
 const LINKS = [
-  { href: "/contact", label: "contact", icon: Mail, external: false },
-  { href: "/support", label: "support", icon: HelpCircle, external: false },
+  //   { href: "/contact", label: "contact", icon: Mail, external: false },
+  //   { href: "/support", label: "support", icon: HelpCircle, external: false },
   {
     href: "https://github.com/IM-Mukesh/ThunderTyping",
     label: "github",
     icon: Github,
     external: true,
   },
-  { href: "/terms", label: "terms", icon: FileText, external: false },
-  { href: "/security", label: "security", icon: Shield, external: false },
-  { href: "/privacy", label: "privacy", icon: FileText, external: false },
+  //   { href: "/terms", label: "terms", icon: FileText, external: false },
+  //   { href: "/security", label: "security", icon: Shield, external: false },
+  //   { href: "/privacy", label: "privacy", icon: FileText, external: false },
 ];
 
 export default function Footer({ className = "" }: FooterProps) {
