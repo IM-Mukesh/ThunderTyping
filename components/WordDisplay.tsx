@@ -3,6 +3,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -28,12 +29,13 @@ interface WordPosition {
   lineIndex: number;
 }
 
-// your chosen values (kept here)
+/* Configurable layout values */
 const FONT_PX = 26;
 const LINE_PX = 50;
 const WORD_SPACING = 16;
 const LETTER_SPACING = 2.4;
 const DEFAULT_VISIBLE_LINES = 3;
+const DEBOUNCE_MS = 80;
 
 export function WordDisplay({
   words,
@@ -51,43 +53,62 @@ export function WordDisplay({
   );
   const FILLING_COLOR = "text-white";
 
-  // IMPORTANT: containerRef refers to the visible container we render into.
   const containerRef = useRef<HTMLDivElement | null>(null);
   const measurerRef = useRef<HTMLSpanElement | null>(null);
   const cleanupRef = useRef(false);
+  const resizeObsRef = useRef<ResizeObserver | null>(null);
+  const widthDebounceTid = useRef<number | null>(null);
 
-  // sync container width from the actual visible container
+  // Synchronously read container width when needed
   const updateWidth = useCallback(() => {
-    if (containerRef.current && !cleanupRef.current) {
-      // use clientWidth to respect padding/box-sizing set by parent card
-      setContainerWidth(containerRef.current.clientWidth);
+    if (cleanupRef.current) return;
+    const node = containerRef.current;
+    if (!node) return;
+    const w = Math.floor(node.clientWidth || 0);
+    if (w && w !== containerWidth) {
+      setContainerWidth(w);
     }
-  }, []);
+  }, [containerWidth]);
 
-  useEffect(() => {
-    setMounted(true);
+  // Debounced schedule for updateWidth
+  const scheduleUpdateWidth = useCallback(() => {
+    if (widthDebounceTid.current) {
+      window.clearTimeout(widthDebounceTid.current);
+    }
+    widthDebounceTid.current = window.setTimeout(() => {
+      widthDebounceTid.current = null;
+      updateWidth();
+    }, DEBOUNCE_MS) as unknown as number;
+  }, [updateWidth]);
+
+  // Create hidden measurer and ResizeObserver (useLayoutEffect to read layout synchronously)
+  useLayoutEffect(() => {
     cleanupRef.current = false;
+    setMounted(true);
 
-    // create hidden measurer and ensure it uses the same typography as the visible container
+    // create or sync hidden measurer span
     if (!measurerRef.current) {
       try {
         const span = document.createElement("span");
         span.style.position = "absolute";
         span.style.visibility = "hidden";
-        span.style.whiteSpace = "pre"; // measure spaces as well
+        span.style.whiteSpace = "pre";
         span.style.fontSize = `${FONT_PX}px`;
         span.style.lineHeight = `${LINE_PX}px`;
         (span.style as any).fontFamily = "inherit";
         span.style.letterSpacing = `${LETTER_SPACING}px`;
         span.style.pointerEvents = "none";
         span.style.boxSizing = "content-box";
+        span.style.left = "-9999px";
+        span.style.top = "-9999px";
         document.body.appendChild(span);
         measurerRef.current = span;
       } catch (err) {
-        console.warn("[WordDisplay] measurer create failed", err);
+        // graceful fallback — measurement will use approximate widths
+        // eslint-disable-next-line no-console
+        console.warn("[WordDisplay] failed to create measurer", err);
       }
     } else {
-      // keep measurer in sync (HMR)
       try {
         measurerRef.current.style.fontSize = `${FONT_PX}px`;
         measurerRef.current.style.lineHeight = `${LINE_PX}px`;
@@ -97,17 +118,56 @@ export function WordDisplay({
       } catch (_) {}
     }
 
-    updateWidth();
-    let tid: any;
-    const onResize = () => {
-      clearTimeout(tid);
-      tid = setTimeout(updateWidth, 100);
-    };
-    window.addEventListener("resize", onResize);
+    // Setup ResizeObserver if available, otherwise fallback to window resize
+    const node = containerRef.current;
+    if (node && typeof ResizeObserver !== "undefined") {
+      try {
+        const ro = new ResizeObserver(() => {
+          scheduleUpdateWidth();
+        });
+        ro.observe(node);
+        resizeObsRef.current = ro;
+      } catch (err) {
+        // If constructing ResizeObserver fails, fallback to window resize
+        window.addEventListener("resize", scheduleUpdateWidth);
+      }
+    } else {
+      window.addEventListener("resize", scheduleUpdateWidth);
+    }
+
+    // initial read in next rAF after paint
+    requestAnimationFrame(() => {
+      updateWidth();
+    });
+
+    // re-measure when fonts are ready (prevents incorrect initial wrapping)
+    try {
+      (document as any).fonts?.ready
+        ?.then(() => {
+          scheduleUpdateWidth();
+        })
+        .catch(() => {});
+    } catch (e) {
+      // ignore for older browsers
+    }
 
     return () => {
       cleanupRef.current = true;
-      window.removeEventListener("resize", onResize);
+
+      // cleanup ResizeObserver safely (use local var to make TS happy)
+      const ro = resizeObsRef.current;
+      if (ro && containerRef.current) {
+        try {
+          ro.unobserve(containerRef.current);
+          ro.disconnect();
+        } catch (_) {
+          /* ignore */
+        }
+        resizeObsRef.current = null;
+      } else {
+        window.removeEventListener("resize", scheduleUpdateWidth);
+      }
+
       if (measurerRef.current && measurerRef.current.parentNode) {
         try {
           measurerRef.current.parentNode.removeChild(measurerRef.current);
@@ -117,10 +177,17 @@ export function WordDisplay({
           measurerRef.current = null;
         }
       }
-    };
-  }, [updateWidth]);
 
-  // reset offset for new tests
+      if (widthDebounceTid.current) {
+        window.clearTimeout(widthDebounceTid.current);
+        widthDebounceTid.current = null;
+      }
+    };
+    // empty deps so it runs once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reset offset for new test
   useEffect(() => {
     if (currentWordIndex === 0) setCurrentLineOffset(0);
   }, [currentWordIndex]);
@@ -172,7 +239,6 @@ export function WordDisplay({
     const m = measurerRef.current;
     if (!m || !mounted) return 0;
     try {
-      // measure exactly what's visible as typed for the current word
       m.textContent = currentInput ?? "";
       const measured = m.offsetWidth;
       return measured && measured > 0
@@ -183,7 +249,6 @@ export function WordDisplay({
     }
   }, [currentInput, mounted, containerWidth]);
 
-  // build absolute positions using effective widths
   const wordPositions = useMemo(() => {
     if (!measuredWidths || measuredWidths.length === 0)
       return [] as WordPosition[];
@@ -237,7 +302,7 @@ export function WordDisplay({
     currentWordIndex,
   ]);
 
-  // scroll logic
+  // Scroll logic to keep current line visible
   useEffect(() => {
     if (!wordPositions || wordPositions.length === 0) return;
     if (currentWordIndex < 0 || currentWordIndex >= wordPositions.length)
@@ -256,12 +321,10 @@ export function WordDisplay({
     }
   }, [wordPositions, currentWordIndex, currentLineOffset, visibleLines]);
 
-  // caret offset measured for current typed string
   const caretOffsetForCurrent = useMemo(() => {
     const m = measurerRef.current;
     if (!m || !mounted) return 0;
     try {
-      // measure substring up to caret (current word's typed content)
       m.textContent = currentInput ?? "";
       return m.offsetWidth || 0;
     } catch {
@@ -282,6 +345,7 @@ export function WordDisplay({
       letterSpacing: `${LETTER_SPACING}px`,
     };
 
+    // Already completed word rendering (per-char coloring based on completedInputs)
     if (index < currentWordIndex) {
       const typed = completedInputs[index] ?? "";
       return (
@@ -296,14 +360,13 @@ export function WordDisplay({
             return (
               <span
                 key={ci}
-                className={undefined}
                 style={{
                   display: "inline-block",
                   color: isCorrect
-                    ? "#ffffff" // completed & correct: mid-contrast
+                    ? "#ffffff"
                     : typedCh !== undefined
-                    ? "#ef4444" // red-500 for wrong characters
-                    : "rgba(255,255,255,0.45)", // fallback if weird
+                    ? "#ef4444"
+                    : "rgba(255,255,255,0.45)",
                 }}
               >
                 {ch}
@@ -332,13 +395,13 @@ export function WordDisplay({
       );
     }
 
+    // Current active word: render typed vs untyped characters
     if (index === currentWordIndex) {
       const typed = currentInput ?? "";
       const chars = word.split("");
       const extras =
         typed.length > chars.length ? typed.slice(chars.length) : "";
 
-      // has the user typed at least one character for this word?
       const hasStartedTyping = typed.length > 0;
 
       return (
@@ -351,14 +414,13 @@ export function WordDisplay({
             const typedCh = typed[ci];
             const isCorrect = typedCh !== undefined && typedCh === ch;
 
-            // If user hasn't started typing this word, render every char faint.
             if (!hasStartedTyping) {
               return (
                 <span
                   key={ci}
                   style={{
                     display: "inline-block",
-                    color: "rgba(255, 255, 255, 0.25)", // faint until typing begins
+                    color: "rgba(255, 255, 255, 0.25)",
                   }}
                 >
                   {ch}
@@ -366,31 +428,25 @@ export function WordDisplay({
               );
             }
 
-            // User has started typing: only typed chars should be highlighted.
-            // Untyped chars remain faint.
             if (typedCh !== undefined) {
-              // typed character: show correct or error color
               return (
                 <span
                   key={ci}
                   style={{
                     display: "inline-block",
-                    color: isCorrect
-                      ? "#ffffff" // typed & correct: almost white
-                      : "#ef4444", // typed & wrong: red
+                    color: isCorrect ? "#ffffff" : "#ef4444",
                   }}
                 >
                   {ch}
                 </span>
               );
             } else {
-              // not yet typed character in the active word: keep faint
               return (
                 <span
                   key={ci}
                   style={{
                     display: "inline-block",
-                    color: "rgba(255, 255, 255, 0.25)", // stays faint
+                    color: "rgba(255, 255, 255, 0.25)",
                   }}
                 >
                   {ch}
@@ -418,13 +474,14 @@ export function WordDisplay({
       );
     }
 
+    // Future/untyped words
     return (
       <span
         key={index}
-        className="inline-flex items-center  whitespace-pre"
+        className="inline-flex items-center whitespace-pre"
         style={{
           ...style,
-          color: "rgba(255, 255, 255, 0.25)", // faint untyped words
+          color: "rgba(255, 255, 255, 0.25)",
         }}
       >
         {word}
@@ -449,10 +506,9 @@ export function WordDisplay({
     })();
 
   return (
-    // fill the parent card width so parent controls left/right padding
-    <div className="w-full" ref={containerRef}>
+    <div className="w-full min-w-0" ref={containerRef}>
       <div
-        className="relative overflow-hidden "
+        className="relative overflow-hidden"
         style={{
           height: LINE_PX * visibleLines,
           fontSize: `${FONT_PX}px`,

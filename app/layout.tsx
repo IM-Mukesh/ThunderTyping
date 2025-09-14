@@ -98,6 +98,13 @@ export default function RootLayout({
       <head>
         {/* Preload important images */}
         <link rel="preload" href="/logo.png" as="image" />
+        <link
+          rel="preload"
+          href="/fonts/YourFont.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
 
         {/* Favicons (explicit) */}
         <link rel="icon" href="/favicon.ico" />

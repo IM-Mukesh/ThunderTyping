@@ -53,6 +53,7 @@ export default function TypingTest({
   const cleanupRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // Focus input after mount/hydration (small delay ensures hydration complete)
   useEffect(() => {
     cleanupRef.current = false;
     // small delay to ensure hydration complete; 0ms timeout used intentionally
@@ -66,6 +67,39 @@ export default function TypingTest({
       clearTimeout(t);
     };
   }, []);
+
+  // === ADDED SAFETY-NET: dispatch resize on next rAF and after fonts ready ===
+  // This helps third-party or custom measurement logic (and older components) re-run
+  // their layout calculations once the page has painted and once fonts have loaded.
+  useEffect(() => {
+    // dispatch on next paint
+    requestAnimationFrame(() => {
+      try {
+        window.dispatchEvent(new Event("resize"));
+      } catch (e) {
+        // ignore - defensive
+      }
+    });
+
+    // dispatch once fonts are ready (prevents FOIT/flash-of-incorrect-measure)
+    try {
+      (document as any).fonts?.ready
+        ?.then(() => {
+          try {
+            window.dispatchEvent(new Event("resize"));
+          } catch (e) {
+            /* ignore */
+          }
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    } catch (e) {
+      // ignore for older browsers/environments
+    }
+    // run once
+  }, []);
+  // =====================================================================
 
   useEffect(() => {
     if (isFinished && !showResults) {
@@ -177,7 +211,7 @@ export default function TypingTest({
   }
 
   return (
-    <div className="w-full max-w-4xl px-4 space-y-6 relative">
+    <div className="w-full space-y-6 relative">
       {/* Timer/Selector area — fixed height so they occupy same space */}
       <div className="w-full flex items-center justify-center">
         <div className="h-16 flex items-center justify-center">
@@ -217,19 +251,20 @@ export default function TypingTest({
               transition={{ duration: 0.25 }}
               ref={containerRef}
               onClick={handleWrapperClick}
-              className="mx-auto max-w-4xl rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm p-8"
+              // Added min-w-0 here to avoid flex-shrink issues in parent containers
+              className="mx-auto w-full min-w-0 rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm 
+                         px-3 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8"
               style={{ minHeight: 260, willChange: "transform, opacity" }}
             >
-              <div className="w-full h-full flex items-center justify-center">
-                <div className="w-full">
-                  <WordDisplay
-                    words={words}
-                    currentWordIndex={currentWordIndex}
-                    currentInput={currentInput}
-                    completedInputs={completedInputs}
-                    visibleLines={3}
-                  />
-                </div>
+              {/* Main typing area container */}
+              <div className="w-full">
+                <WordDisplay
+                  words={words}
+                  currentWordIndex={currentWordIndex}
+                  currentInput={currentInput}
+                  completedInputs={completedInputs}
+                  visibleLines={3}
+                />
               </div>
 
               <input
@@ -279,7 +314,7 @@ export default function TypingTest({
             className="fixed inset-0 flex items-center justify-center bg-black/95 backdrop-blur-sm z-40"
             style={{ willChange: "transform, opacity" }}
           >
-            <div className="w-full max-w-4xl mx-auto px-6 mt-6">
+            <div className="w-full max-w-6xl mx-auto px-6 mt-6">
               <ResultsDisplay
                 grossWpm={results.grossWpm}
                 netWpm={results.netWpm}
