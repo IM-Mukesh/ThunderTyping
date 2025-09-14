@@ -48,9 +48,74 @@ export default function TypingTest({
 
   const [showResults, setShowResults] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
+
+  // Refs used across renders — keep them declared before any early return
   const inputRef = useRef<HTMLInputElement | null>(null);
   const cleanupRef = useRef<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Track whether we're in IME/composition mode (avoid double-processing)
+  const isComposingRef = useRef(false);
+
+  /**
+   * MOBILE / SOFT-KEYBOARD SUPPORT
+   *
+   * Many mobile keyboards don't reliably fire keydown events. The input needs to
+   * handle onChange / composition to work reliably on soft keyboards.
+   *
+   * We declare these callbacks and composition handlers BEFORE the early return
+   * so hooks order stays stable across renders.
+   */
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (isComposingRef.current) {
+        // ignore intermediate composition text
+        return;
+      }
+
+      const newVal = e.target.value ?? "";
+      const prevVal = currentInput ?? "";
+
+      if (newVal.length > prevVal.length) {
+        const added = newVal.slice(prevVal.length);
+        for (const ch of added) {
+          processKey(ch);
+        }
+      } else if (newVal.length < prevVal.length) {
+        const removedCount = prevVal.length - newVal.length;
+        for (let i = 0; i < removedCount; i++) {
+          processKey("Backspace");
+        }
+      }
+      // engine controls currentInput; we do not set local input state here
+    },
+    [currentInput, processKey]
+  );
+
+  const handleCompositionStart = useCallback(() => {
+    isComposingRef.current = true;
+  }, []);
+
+  const handleCompositionEnd = useCallback(
+    (e: React.CompositionEvent<HTMLInputElement>) => {
+      isComposingRef.current = false;
+      const newVal = (e.target as HTMLInputElement).value ?? "";
+      const prevVal = currentInput ?? "";
+
+      if (newVal.length > prevVal.length) {
+        const added = newVal.slice(prevVal.length);
+        for (const ch of added) {
+          processKey(ch);
+        }
+      } else if (newVal.length < prevVal.length) {
+        const removedCount = prevVal.length - newVal.length;
+        for (let i = 0; i < removedCount; i++) {
+          processKey("Backspace");
+        }
+      }
+    },
+    [currentInput, processKey]
+  );
 
   // Focus input after mount/hydration
   useEffect(() => {
@@ -182,9 +247,11 @@ export default function TypingTest({
 
   const handleWrapperClick = useCallback(() => {
     if (showResults || isScrolling) return;
+    // user gesture — focus the hidden input so mobile keyboard appears
     inputRef.current?.focus?.();
   }, [showResults, isScrolling]);
 
+  // --- Early return for loading: only after all hooks are declared above ---
   if (!words || words.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[360px]">
@@ -252,8 +319,11 @@ export default function TypingTest({
                 ref={inputRef}
                 className="sr-only"
                 value={currentInput}
-                onChange={() => {}}
+                // handle soft keyboard input via onChange
+                onChange={handleInputChange}
                 onKeyDown={handleInputKeyDown}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
@@ -295,7 +365,7 @@ export default function TypingTest({
             // Do not use inset-0 here — keep footer visible using bottom var
             className="fixed left-0 right-0 top-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-40"
             style={{
-              bottom: "var(--footer-height, 64px)",
+              bottom: "var(--footer-height, 48px)",
               willChange: "transform, opacity",
             }}
           >
