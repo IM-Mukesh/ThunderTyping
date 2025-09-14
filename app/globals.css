@@ -207,3 +207,8 @@ textarea,
 .header-brand * {
   color: #ffffff !important;
 }
+/* prevents body scrolling when mobile menu open */
+.body-scroll-locked {
+  overflow: hidden !important;
+  touch-action: none;
+}
