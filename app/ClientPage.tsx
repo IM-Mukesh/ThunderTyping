@@ -50,18 +50,24 @@ export default function ClientPage() {
     );
   }
 
+  // inside return of ClientPage
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center justify-center bg-white">
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center justify-center">
       {/* Reusable Header */}
       <Header />
 
-      {/* TypingTest in center below logo - updated to use more width */}
-      <div className="w-[95%] sm:w-[92%] md:w-[88%] lg:w-[85%] xl:w-[82%] 2xl:w-[78%] max-w-[1600px] pb-20 flex-1 flex items-center justify-center">
+      {/* TypingTest in center below logo */}
+      <div
+        className="w-[95%] sm:w-[92%] md:w-[88%] lg:w-[85%] xl:w-[82%] 2xl:w-[78%] max-w-[1600px] flex-1 flex items-center justify-center"
+        // FIX: give bottom padding equal to footer height
+        style={{ paddingBottom: "var(--footer-height,64px)" }}
+      >
         <TypingTest
           duration={currentDuration}
           onDurationChange={handleDurationChange}
         />
       </div>
+
       <Footer />
     </div>
   );
