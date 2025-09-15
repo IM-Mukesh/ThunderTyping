@@ -99,65 +99,71 @@ export default function Header({ className = "" }: HeaderProps) {
   }, [open]);
 
   return (
-    <header
-      className={`fixed top-2 left-1/2 transform -translate-x-1/2 w-full max-w-6xl z-[60] ${className}`}
-    >
-      <div className="flex items-center justify-between px-6 py-3 bg-transparent">
-        {/* Left: Logo + Brand */}
-        <Link
-          href="/"
-          className="flex items-center gap-3"
-          aria-label="ThunderTyping home"
-        >
-          <ThunderLogo size={42} className="block text-[#00CFFF]" />
-          <span className="font-bold text-2xl text-[#00CFFF]">
-            ThunderTyping
-          </span>
-        </Link>
+    <header className={`fixed top-0 left-0 right-0 w-full z-[60] ${className}`}>
+      {/* Full-width background with gradient and backdrop blur */}
+      <div className="absolute inset-0 bg-gradient-to-br  backdrop-blur-md "></div>
 
-        {/* Desktop nav (hidden on mobile) */}
-        <nav
-          className="hidden md:flex items-center gap-8"
-          aria-label="Primary navigation"
-        >
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-white hover:text-[#00CFFF] transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        {/* Mobile hamburger */}
-        <div className="md:hidden flex items-center">
-          <button
-            aria-label={open ? "Close menu" : "Open menu"}
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-            className="relative w-10 h-10 rounded-lg flex items-center justify-center ring-0 focus:outline-none focus:ring-2 focus:ring-[#00CFFF] transition"
+      {/* Content container */}
+      <div className="relative max-w-6xl mx-auto px-6 py-4">
+        <div className="flex items-center justify-between">
+          {/* Left: Logo + Brand */}
+          <Link
+            href="/"
+            className="flex items-center gap-3"
+            aria-label="ThunderTyping home"
           >
-            <span className="sr-only">{open ? "Close menu" : "Open menu"}</span>
+            <ThunderLogo size={42} className="block text-[#00CFFF]" />
+            <span className="font-bold text-2xl text-[#00CFFF]">
+              ThunderTyping
+            </span>
+          </Link>
 
-            {/* Hamburger animated lines — keep as you had */}
-            <motion.span
-              className="block w-6 h-0.5 bg-white rounded-sm origin-center"
-              animate={open ? { rotate: 45, y: 0 } : { rotate: 0, y: -5 }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.18 }}
-            />
-            <motion.span
-              className="block w-6 h-0.5 bg-white rounded-sm origin-center absolute"
-              animate={open ? { opacity: 0 } : { opacity: 1 }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.18 }}
-            />
-            <motion.span
-              className="block w-6 h-0.5 bg-white rounded-sm origin-center absolute"
-              animate={open ? { rotate: -45, y: 0 } : { rotate: 0, y: 5 }}
-              transition={reduceMotion ? { duration: 0 } : { duration: 0.18 }}
-            />
-          </button>
+          {/* Desktop nav (hidden on mobile) */}
+          <nav
+            className="hidden md:flex items-center gap-8"
+            aria-label="Primary navigation"
+          >
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="text-white hover:text-[#00CFFF] transition-colors"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Mobile hamburger */}
+          <div className="md:hidden flex items-center">
+            <button
+              aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+              className="relative w-10 h-10 rounded-lg flex items-center justify-center ring-0 focus:outline-none focus:ring-2 focus:ring-[#00CFFF] transition"
+            >
+              <span className="sr-only">
+                {open ? "Close menu" : "Open menu"}
+              </span>
+
+              {/* Hamburger animated lines — keep as you had */}
+              <motion.span
+                className="block w-6 h-0.5 bg-white rounded-sm origin-center"
+                animate={open ? { rotate: 45, y: 0 } : { rotate: 0, y: -5 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.18 }}
+              />
+              <motion.span
+                className="block w-6 h-0.5 bg-white rounded-sm origin-center absolute"
+                animate={open ? { opacity: 0 } : { opacity: 1 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.18 }}
+              />
+              <motion.span
+                className="block w-6 h-0.5 bg-white rounded-sm origin-center absolute"
+                animate={open ? { rotate: -45, y: 0 } : { rotate: 0, y: 5 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.18 }}
+              />
+            </button>
+          </div>
         </div>
       </div>
 
