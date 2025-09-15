@@ -1,45 +1,54 @@
 // store/store.ts
 import { configureStore, combineReducers } from "@reduxjs/toolkit";
-import { persistReducer, persistStore } from "redux-persist";
-import storage from "redux-persist/lib/storage"; // defaults to localStorage
+import {
+  persistReducer,
+  persistStore,
+  FLUSH,
+  REHYDRATE,
+  PAUSE,
+  PERSIST,
+  PURGE,
+  REGISTER,
+} from "redux-persist";
+import storage from "redux-persist/lib/storage"; // browser localStorage
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 
 import settingsReducer from "./slices/settingsSlice";
 import typingReducer from "./slices/typingSlice";
 
-// 1️⃣ Combine reducers
+// combine
 const rootReducer = combineReducers({
   settings: settingsReducer,
   typing: typingReducer,
 });
 
-// 2️⃣ Persist config
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["settings"], // only persist settings
+  whitelist: ["settings"],
 };
 
-// 3️⃣ Persisted reducer
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
-// 4️⃣ Store
 export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: false, // redux-persist needs this
+      serializableCheck: {
+        // ignore redux-persist action types
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
     }),
 });
 
-// 5️⃣ Persistor
-export const persistor = persistStore(store);
+// IMPORTANT: only call persistStore on the client side
+export let persistor: ReturnType<typeof persistStore> | null = null;
+if (typeof window !== "undefined") {
+  persistor = persistStore(store);
+}
 
-// 6️⃣ Types
-// ✅ Use store.getState (includes _persist) instead of rootReducer
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
-// 7️⃣ Hooks
-export const useAppDispatch: () => AppDispatch = useDispatch;
+export const useAppDispatch = () => useDispatch<AppDispatch>();
 export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;

@@ -1,54 +1,92 @@
+// store/slices/settingsSlice.ts
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface FillColor {
-  code: string; // hex or rgb color code
-  className: string; // Tailwind or CSS class
+  code: string; // hex like '#FFFFFF' or identifier like 'gradient-cyan-blue'
+  className: string; // Tailwind or CSS class (for gradients or classes)
 }
 
 interface SettingsState {
   fillColors: FillColor[];
   language: string;
-  currentFillColor: string; // store hex code of selected color
+  currentFillColor: string; // hex or identifier
+  isInitialized: boolean;
 }
 
+const defaultColors: FillColor[] = [
+  { code: "#FFFFFF", className: "bg-white text-black" },
+  { code: "#FFFF00", className: "bg-yellow-300 text-black" },
+  { code: "#00FF00", className: "bg-green-500 text-white" },
+  { code: "#00FFFF", className: "bg-cyan-300 text-black" },
+  // Use an identifier for gradients instead of putting classes in `code`
+  {
+    code: "gradient-cyan-blue",
+    className:
+      "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text",
+  },
+];
+
 const initialState: SettingsState = {
-  fillColors: [
-    { code: "#FFFFFF", className: "text-black bg-white" }, // White background, black text
-    { code: "#FFFF00", className: "text-black bg-yellow-300" }, // Yellow
-    { code: "#00FF00", className: "text-white bg-green-500" }, // Green
-    { code: "#FF0000", className: "text-white bg-red-500" }, // Red
-    { code: "#00FFFF", className: "text-black bg-cyan-300" }, // Cyan
-    {
-      code: "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text",
-      className:
-        "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text",
-    },
-  ],
+  fillColors: defaultColors,
   language: "english",
-  currentFillColor: "#FFFFFF", // default: white
+  currentFillColor: "#FFFFFF",
+  isInitialized: false,
 };
 
 const settingsSlice = createSlice({
   name: "settings",
   initialState,
   reducers: {
-    addColor: (state, action: PayloadAction<FillColor>) => {
-      state.fillColors.push(action.payload);
+    initializeSettings: (state) => {
+      if (!state.fillColors || state.fillColors.length === 0) {
+        state.fillColors = defaultColors;
+      }
+      state.currentFillColor = state.currentFillColor || "#FFFFFF";
+      state.language = state.language || "english";
+      state.isInitialized = true;
     },
+
+    addColor: (state, action: PayloadAction<FillColor>) => {
+      // avoid duplicates by code
+      const exists = state.fillColors.some(
+        (c) => c.code === action.payload.code
+      );
+      if (!exists) state.fillColors.push(action.payload);
+    },
+
     removeColor: (state, action: PayloadAction<string>) => {
       state.fillColors = state.fillColors.filter(
         (color) => color.code !== action.payload
       );
+      if (state.currentFillColor === action.payload) {
+        state.currentFillColor = "#FFFFFF";
+      }
     },
+
     setLanguage: (state, action: PayloadAction<string>) => {
       state.language = action.payload;
     },
+
     setCurrentFillColor: (state, action: PayloadAction<string>) => {
       state.currentFillColor = action.payload;
+    },
+
+    resetToDefaults: (state) => {
+      state.fillColors = defaultColors;
+      state.language = "english";
+      state.currentFillColor = "#FFFFFF";
+      state.isInitialized = true;
     },
   },
 });
 
-export const { addColor, removeColor, setLanguage, setCurrentFillColor } =
-  settingsSlice.actions;
+export const {
+  initializeSettings,
+  addColor,
+  removeColor,
+  setLanguage,
+  setCurrentFillColor,
+  resetToDefaults,
+} = settingsSlice.actions;
+
 export default settingsSlice.reducer;

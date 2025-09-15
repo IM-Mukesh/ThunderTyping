@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThunderLoader } from "@/components/ThunderLogo";
 import AnalyticsClient from "@/components/AnalyticsClient";
 import Providers from "./providers";
+import ReduxProvider from "@/components/ReduxProvider";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://thundertyping.com";
@@ -177,11 +178,13 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Providers>
-            <Suspense fallback={<ThunderLoader />}>
-              {children}
-              {/* Client-side page view tracking for SPA navigation */}
-              {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
-            </Suspense>
+            <ReduxProvider>
+              <Suspense fallback={<ThunderLoader />}>
+                {children}
+                {/* Client-side page view tracking for SPA navigation */}
+                {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
+              </Suspense>
+            </ReduxProvider>
 
             {/* Vercel Analytics (works when enabled in Vercel) */}
             <Analytics />

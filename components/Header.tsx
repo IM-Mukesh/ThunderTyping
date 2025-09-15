@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   // { href: "/about", label: "About" },
   // { href: "/blog", label: "Blog" },
   // { href: "/setting", label: "Settings" },
-  { href: "/setting", label: "" }, // placeholder — you can update label when ready
+  { href: "/settings", label: "Setting" }, // placeholder — you can update label when ready
 ];
 
 export default function Header({ className = "" }: HeaderProps) {

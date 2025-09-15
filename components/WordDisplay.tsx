@@ -33,7 +33,7 @@ interface WordPosition {
 const FONT_PX = 26;
 const LINE_PX = 50;
 const WORD_SPACING = 16;
-const LETTER_SPACING = 2.4;
+const LETTER_SPACING = 2.7;
 const DEFAULT_VISIBLE_LINES = 3;
 const DEBOUNCE_MS = 80;
 
@@ -58,7 +58,9 @@ export function WordDisplay({
   const cleanupRef = useRef(false);
   const resizeObsRef = useRef<ResizeObserver | null>(null);
   const widthDebounceTid = useRef<number | null>(null);
-
+  const currentFillColor = useSelector(
+    (state: RootState) => state?.settings?.currentFillColor
+  );
   // Synchronously read container width when needed
   const updateWidth = useCallback(() => {
     if (cleanupRef.current) return;
@@ -363,7 +365,7 @@ export function WordDisplay({
                 style={{
                   display: "inline-block",
                   color: isCorrect
-                    ? "#ffffff"
+                    ? currentFillColor
                     : typedCh !== undefined
                     ? "#ef4444"
                     : "rgba(255,255,255,0.45)",
@@ -434,7 +436,7 @@ export function WordDisplay({
                   key={ci}
                   style={{
                     display: "inline-block",
-                    color: isCorrect ? "#ffffff" : "#ef4444",
+                    color: isCorrect ? currentFillColor : "#ef4444",
                   }}
                 >
                   {ch}
