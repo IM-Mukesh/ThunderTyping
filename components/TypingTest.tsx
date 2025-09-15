@@ -19,6 +19,7 @@ const ResultsDisplay = dynamic(() => import("./ResultsDisplay"), {
 });
 import { ThunderLoader } from "./ThunderLogo";
 import KeyboardHint from "@/components/KeyboardHint";
+import CapsLockIndicator from "./CapsLockIndicator";
 
 interface TypingTestProps {
   duration: number;
@@ -280,6 +281,10 @@ export default function TypingTest({
         </div>
       </div>
 
+      {/* <div className="h-[100px]">
+        <CapsLockIndicator />
+      </div> */}
+
       {/* The card that contains ONLY the typing words / input / instructions */}
       <motion.div
         className="mx-auto w-full"
@@ -302,8 +307,8 @@ export default function TypingTest({
               ref={containerRef}
               onClick={handleWrapperClick}
               className="mx-auto w-full min-w-0 rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm 
-                         px-3 sm:px-4 md:px-6 lg:px-8 py-6 md:py-8"
-              style={{ minHeight: 260, willChange: "transform, opacity" }}
+                         px-3 sm:px-4 md:px-6 lg:px-8 py-3 md:py-5"
+              style={{ minHeight: 180, willChange: "transform, opacity" }}
             >
               <div className="w-full">
                 <WordDisplay

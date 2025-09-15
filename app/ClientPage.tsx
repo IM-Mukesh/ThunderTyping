@@ -7,7 +7,6 @@ import { useClientOnly } from "@/hooks/useClientOnly";
 import { ThunderLoader } from "@/components/ThunderLogo";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-
 const TypingTest = dynamic(() => import("@/components/TypingTest"), {
   ssr: false,
   loading: () => (
@@ -16,7 +15,6 @@ const TypingTest = dynamic(() => import("@/components/TypingTest"), {
     </div>
   ),
 });
-
 export default function ClientPage() {
   const isClient = useClientOnly();
   const [storedDuration, setStoredDuration] = useLocalStorage<number>(
@@ -25,7 +23,6 @@ export default function ClientPage() {
   );
   const [currentDuration, setCurrentDuration] =
     useState<number>(storedDuration);
-
   useEffect(() => {
     if (
       typeof storedDuration === "number" &&
@@ -35,12 +32,10 @@ export default function ClientPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storedDuration]);
-
   const handleDurationChange = (newDuration: number) => {
     setCurrentDuration(newDuration);
     setStoredDuration(newDuration);
   };
-
   if (!isClient) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex items-center justify-center">
@@ -48,18 +43,17 @@ export default function ClientPage() {
       </div>
     );
   }
-
+  // inside return of ClientPage
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center justify-center">
-      {/* Reusable Header */}
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-950 to-black flex flex-col items-center ">
+      {/* Reusable Header /}
+{/ TypingTest in center below logo */}
       <Header />
-
-      {/* TypingTest in center below logo - adjusted for fixed header */}
       <div
-        className="w-[95%] sm:w-[92%] md:w-[88%] lg:w-[85%] xl:w-[82%] 2xl:w-[78%] max-w-[1600px] flex-1 flex items-center justify-center"
+        className="w-[95%] sm:w-[92%] md:w-[88%] lg:w-[85%] xl:w-[82%] 2xl:w-[78%] max-w-[1600px] flex-1 flex  justify-center mt-[80px] 2xl:mt-[120px]"
+        // FIX: give bottom padding equal to footer height
         style={{
-          paddingTop: "80px", // Account for fixed header height
-          paddingBottom: "var(--footer-height,48px)", // Account for footer height
+          paddingBottom: "var(--footer-height,64px)",
         }}
       >
         <TypingTest
@@ -67,7 +61,6 @@ export default function ClientPage() {
           onDurationChange={handleDurationChange}
         />
       </div>
-
       <Footer />
     </div>
   );
