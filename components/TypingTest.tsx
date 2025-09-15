@@ -19,7 +19,6 @@ const ResultsDisplay = dynamic(() => import("./ResultsDisplay"), {
 });
 import { ThunderLoader } from "./ThunderLogo";
 import KeyboardHint from "@/components/KeyboardHint";
-import CapsLockIndicator from "./CapsLockIndicator";
 
 interface TypingTestProps {
   duration: number;
@@ -281,13 +280,9 @@ export default function TypingTest({
         </div>
       </div>
 
-      {/* <div className="h-[100px]">
-        <CapsLockIndicator />
-      </div> */}
-
       {/* The card that contains ONLY the typing words / input / instructions */}
       <motion.div
-        className="mx-auto w-full"
+        className="mx-auto w-full mt-12 2xl:mt-[100px]"
         animate={{ y: showResults ? "-20vh" : "0px" }}
         transition={{
           type: "spring",
@@ -307,7 +302,7 @@ export default function TypingTest({
               ref={containerRef}
               onClick={handleWrapperClick}
               className="mx-auto w-full min-w-0 rounded-2xl bg-neutral-900/95 border border-neutral-700/60 shadow-2xl backdrop-blur-sm 
-                         px-3 sm:px-4 md:px-6 lg:px-8 py-3 md:py-5"
+                         px-3 sm:px-4 md:px-6 lg:px-8 py-3 md:py-8"
               style={{ minHeight: 180, willChange: "transform, opacity" }}
             >
               <div className="w-full">
@@ -338,7 +333,7 @@ export default function TypingTest({
                 role="textbox"
               />
 
-              <div className="mt-6 pb-2 flex items-center justify-center">
+              {/* <div className="mt-6 pb-2 flex items-center justify-center">
                 <div
                   id="typing-instructions"
                   className={`text-center text-neutral-400 text-sm transition-opacity duration-300 ${
@@ -347,7 +342,7 @@ export default function TypingTest({
                 >
                   Press any key to begin typing test
                 </div>
-              </div>
+              </div> */}
             </motion.div>
           )}
         </AnimatePresence>
