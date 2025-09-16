@@ -3,7 +3,6 @@ import type React from "react";
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Analytics } from "@vercel/analytics/next";
 import { Suspense } from "react";
 import Script from "next/script";
 import "./globals.css";
@@ -185,9 +184,6 @@ export default function RootLayout({
                 {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
               </Suspense>
             </ReduxProvider>
-
-            {/* Vercel Analytics (works when enabled in Vercel) */}
-            <Analytics />
           </Providers>
         </ThemeProvider>
       </body>

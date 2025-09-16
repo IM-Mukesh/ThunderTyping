@@ -1,32 +1,28 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    // set to false for safety in production; you can enable locally for fast dev iteration
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 
-  // If you're on Vercel, enabling Next.js image optimization helps LCP.
-  // If you must keep unoptimized images, set unoptimized: true.
   images: {
     unoptimized: false,
   },
 
   reactStrictMode: true,
 
-  // Enable CSS optimization (safe and helpful)
   experimental: {
     optimizeCss: true,
+    // appDir: true, // enable if you're using the /app router
   },
 
-  // Compiler options
   compiler: {
-    // Remove console.log in production
     removeConsole: process.env.NODE_ENV === "production",
   },
 
-  // modularize imports for common heavy libs to reduce bundle size
   modularizeImports: {
     "lucide-react": {
       transform: "lucide-react/dist/icons/{{member}}",
@@ -36,32 +32,36 @@ const nextConfig = {
     },
   },
 
-  // Webpack configuration for better performance
   webpack: (config, { dev, isServer }) => {
-    // Optimize bundle splitting on client
     if (!isServer) {
-      config.optimization.splitChunks = {
-        chunks: "all",
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: "vendors",
-            priority: 10,
-            enforce: true,
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          chunks: "all",
+          cacheGroups: {
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: "vendors",
+              priority: 10,
+              enforce: true,
+            },
           },
         },
       };
     }
-
     return config;
   },
 
-  // Headers for better caching & security and ensure .xml is served with application/xml
+  // NOTE: removed top-level `swcMinify` due to Next version compatibility.
+  // If your Next supports it, you can re-add it after checking `next -v`.
+
+  // Corrected header sources (Next's route matcher syntax)
   async headers() {
     return [
       {
-        // long cache for static asset file types
-        source: "/:all*(jpg|jpeg|png|gif|svg|webp|avif|ico|woff2|woff|ttf)",
+        // long cache for image / font asset extensions
+        // use a simple group without `?:` so Next's parser accepts it
+        source: "/:all*\\.(jpg|jpeg|png|gif|svg|webp|avif|ico|woff2|woff|ttf)",
         headers: [
           {
             key: "Cache-Control",
@@ -70,8 +70,8 @@ const nextConfig = {
         ],
       },
       {
-        // ensure XML files served with correct content-type
-        source: "/:all(.xml)",
+        // match any .xml path
+        source: "/:all*\\.xml",
         headers: [
           {
             key: "Content-Type",
@@ -83,18 +83,11 @@ const nextConfig = {
         // security headers for all routes
         source: "/(.*)",
         headers: [
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
+          { key: "Referrer-Policy", value: "no-referrer-when-downgrade" },
+          { key: "Permissions-Policy", value: "geolocation=(), microphone=()" },
         ],
       },
     ];
