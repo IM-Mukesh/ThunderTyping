@@ -19,11 +19,6 @@ const defaultColors: FillColor[] = [
   { code: "#00FF00", className: "bg-green-500 text-white" },
   { code: "#00FFFF", className: "bg-cyan-300 text-black" },
   // Use an identifier for gradients instead of putting classes in `code`
-  {
-    code: "gradient-cyan-blue",
-    className:
-      "text-transparent font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text",
-  },
 ];
 
 const initialState: SettingsState = {

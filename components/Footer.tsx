@@ -10,6 +10,7 @@ import {
   Shield,
   FileText,
   HelpCircle,
+  Lock,
 } from "lucide-react";
 
 interface FooterProps {
@@ -39,7 +40,7 @@ const LINKS = [
   },
   { href: "/terms", label: "terms", icon: FileText, external: false },
   { href: "/security", label: "security", icon: Shield, external: false },
-  { href: "/privacy", label: "privacy", icon: FileText, external: false },
+  { href: "/privacy", label: "privacy", icon: Lock, external: false },
 ];
 
 export default function Footer({ className = "" }: FooterProps) {

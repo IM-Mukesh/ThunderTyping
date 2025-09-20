@@ -1,11 +1,16 @@
 // components/AnalyticsClient.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
 type Props = {
-  gaId: string;
+  gaId?: string;
+  /**
+   * If true, will only load analytics after explicit user consent stored in
+   * localStorage as "analytics-consent" === "granted". Default: false.
+   */
+  requireConsent?: boolean;
 };
 
 declare global {
@@ -16,43 +21,137 @@ declare global {
 }
 
 /**
- * Simple client component that triggers a page_view on route change.
- * Keeps event calls guarded so duplicates don't flood GA.
+ * AnalyticsClient
+ * - Defers loading gtag.js until browser is idle or window load (non-blocking).
+ * - Initializes window.dataLayer and window.gtag if needed.
+ * - Sends page_view / config on route changes.
+ *
+ * NOTE: We intentionally do NOT redeclare requestIdleCallback; instead we use
+ * a safe cast when calling it to avoid conflicting with lib.dom types.
  */
-export default function AnalyticsClient({ gaId }: Props) {
+export default function AnalyticsClient({
+  gaId,
+  requireConsent = false,
+}: Props) {
   const pathname = usePathname();
+  const loadedRef = useRef(false);
 
+  const hasConsent = (): boolean => {
+    if (!requireConsent) return true;
+    try {
+      return localStorage.getItem("analytics-consent") === "granted";
+    } catch {
+      return false;
+    }
+  };
+
+  // Inject gtag.js in a deferred way (idle/load)
   useEffect(() => {
     if (!gaId) return;
     if (typeof window === "undefined") return;
+    if (loadedRef.current) return;
+    if (!hasConsent()) return;
 
-    // Debugging hints (only logs in dev console)
-    // Remove or comment these if you don't want console noise.
-    // They help confirm whether gtag/dataLayer exist on route changes.
-    // NOTE: these logs appear in the client console only.
-    // eslint-disable-next-line no-console
-    console.debug("[AnalyticsClient] gaId:", gaId, "pathname:", pathname);
+    const w = window as unknown as any; // safe cast to call non-standard methods
 
-    // fire a config call which records a page_view
-    if (window.gtag) {
-      // eslint-disable-next-line no-console
-      console.debug("[AnalyticsClient] gtag found — sending config");
-      window.gtag("config", gaId, {
-        page_path: pathname,
-      });
-    } else {
-      // fallback: push to dataLayer if present (GTM users may rely on this)
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({
-        event: "page_view",
-        page_path: pathname,
-      });
-      // eslint-disable-next-line no-console
-      console.debug("[AnalyticsClient] pushed page_view to dataLayer", {
-        page_path: pathname,
-      });
+    function initGtag() {
+      // If gtag already exists, mark loaded and exit
+      if (w.gtag) {
+        loadedRef.current = true;
+        return;
+      }
+
+      // create and append the gtag script
+      const script = document.createElement("script");
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+      script.async = true;
+      document.head.appendChild(script);
+
+      // init dataLayer / gtag stub
+      w.dataLayer = w.dataLayer || [];
+      function gtag(...args: any[]) {
+        w.dataLayer!.push(args);
+      }
+      w.gtag = gtag;
+
+      // initial config records first page view
+      try {
+        w.gtag("js", new Date());
+        w.gtag("config", gaId, { page_path: w.location.pathname });
+      } catch {
+        // never throw from analytics
+      }
+
+      loadedRef.current = true;
     }
-  }, [pathname, gaId]);
+
+    // Use requestIdleCallback if available on the platform — cast to any to avoid TS signature mismatch
+    try {
+      if (typeof (w as any).requestIdleCallback === "function") {
+        (w as any).requestIdleCallback(
+          () => {
+            try {
+              initGtag();
+            } catch {
+              /* swallow */
+            }
+          },
+          { timeout: 2000 }
+        );
+      } else {
+        // fallback: wait for load event to avoid interfering with LCP
+        const onLoad = () => {
+          try {
+            initGtag();
+          } catch {
+            /* swallow */
+          }
+          (w as Window & typeof globalThis).removeEventListener("load", onLoad);
+        };
+        (w as Window & typeof globalThis).addEventListener("load", onLoad);
+      }
+    } catch {
+      // if anything goes wrong, fallback to load event listener
+      const onLoad = () => {
+        try {
+          initGtag();
+        } catch {
+          /* swallow */
+        }
+        (w as Window & typeof globalThis).removeEventListener("load", onLoad);
+      };
+      (w as Window & typeof globalThis).addEventListener("load", onLoad);
+    }
+  }, [gaId, requireConsent]);
+
+  // Send page view / config on route change
+  useEffect(() => {
+    if (!gaId) return;
+    if (typeof window === "undefined") return;
+    if (requireConsent && !hasConsent()) return;
+
+    const w = window as unknown as any;
+
+    if (w.gtag) {
+      try {
+        w.gtag("config", gaId, { page_path: pathname });
+      } catch {
+        /* swallow */
+      }
+    } else {
+      // fallback for GTM/dataLayer
+      w.dataLayer = w.dataLayer || [];
+      try {
+        w.dataLayer.push({
+          event: "page_view",
+          page_path: pathname,
+        });
+      } catch {
+        /* swallow */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, gaId, requireConsent]);
 
   return null;
 }

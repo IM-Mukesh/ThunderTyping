@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Suspense } from "react";
-import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThunderLoader } from "@/components/ThunderLogo";
@@ -145,27 +144,11 @@ export default function RootLayout({
           }}
         />
 
-        {/* Google Analytics - only include in production and when GA_ID is present */}
-        {isProd && GA_ID ? (
-          <>
-            {/* Preconnect to GTM for slightly faster loading */}
-            <link rel="preconnect" href="https://www.googletagmanager.com" />
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="gtag-init" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${GA_ID}', {
-                  page_path: window.location.pathname,
-                });
-              `}
-            </Script>
-          </>
-        ) : null}
+        {/* NOTE:
+            Previously gtag/gtm scripts were placed here and executed as part of
+            server-rendered HTML. To reduce blocking and improve CWV we defer
+            injection to a client component (AnalyticsClient) which will load
+            the script when the browser is idle or on load. */}
       </head>
 
       {/* NOTE: removed overflow-hidden; use overflow-auto so pages can scroll */}
@@ -180,7 +163,10 @@ export default function RootLayout({
             <ReduxProvider>
               <Suspense fallback={<ThunderLoader />}>
                 {children}
-                {/* Client-side page view tracking for SPA navigation */}
+
+                {/* Client-side page view tracking for SPA navigation.
+                    AnalyticsClient will defer the actual gtag.js injection to
+                    avoid blocking the initial render. */}
                 {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
               </Suspense>
             </ReduxProvider>

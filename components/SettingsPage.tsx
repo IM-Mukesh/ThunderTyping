@@ -200,17 +200,17 @@ const SettingsPage: React.FC = () => {
                 )}
 
                 {/* Add new color button */}
-                <button
+                {/* <button
                   onClick={() => setShowColorPicker(!showColorPicker)}
                   className="w-full h-16 rounded-xl border-2 border-dashed border-neutral-700 hover:border-cyan-400 transition-all duration-300 hover:scale-105 flex items-center justify-center group/add"
                   type="button"
                 >
                   <Plus className="w-6 h-6 text-neutral-500 group-hover/add:text-cyan-400 transition-colors" />
-                </button>
+                </button> */}
               </div>
 
               {/* Color picker */}
-              {showColorPicker && (
+              {/* {showColorPicker && (
                 <div className="bg-neutral-800/50 backdrop-blur-sm border border-neutral-700/50 rounded-xl p-4 animate-in slide-in-from-top-2 duration-300">
                   <div className="flex gap-3 items-center">
                     <input
@@ -235,7 +235,7 @@ const SettingsPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -295,7 +295,7 @@ const SettingsPage: React.FC = () => {
             <h2 className="text-xl font-semibold text-white">Preview</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-neutral-800/30 border border-neutral-700/50 rounded-xl p-4 text-center">
               <div className="text-3xl font-bold text-cyan-400 mb-1">72</div>
               <div className="text-neutral-400 text-sm">WPM</div>
@@ -310,11 +310,11 @@ const SettingsPage: React.FC = () => {
               <div className="text-3xl font-bold text-orange-400 mb-1">15s</div>
               <div className="text-neutral-400 text-sm">Duration</div>
             </div>
-          </div>
+          </div> */}
 
           <div className="mt-4 p-4 bg-neutral-800/20 rounded-xl border border-neutral-700/30">
             <p
-              className={`text-lg leading-relaxed ${
+              className={`text-lg leading-relaxed font-bold ${
                 currentFillColor && currentFillColor.includes("gradient")
                   ? fillColors.find((c) => c?.code === currentFillColor)
                       ?.className || "text-white"
