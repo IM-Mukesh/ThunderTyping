@@ -15,7 +15,7 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://thundertyping.com";
 const SITE_NAME = "ThunderTyping";
 const SITE_DESCRIPTION =
-  "ThunderTyping is the fastest, most accurate online typing test. Check your WPM with a futuristic, distraction-free design. Improve typing speed and accuracy instantly.";
+  "ThunderTyping: fastest, most accurate online typing test. Take an English typing test to check WPM and improve typing speed and accuracy instantly.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -27,21 +27,20 @@ export const metadata: Metadata = {
   generator: "ThunderTyping",
   applicationName: SITE_NAME,
   keywords: [
+    "English typing test",
     "typing test",
     "online typing test",
-    "WPM test",
+    "typing speed",
     "typing practice",
     "speed typing test",
-    "typing speed",
     "best typing site",
-    "typing speed test online",
+    "typing games",
     "free typing test",
     "typing games",
     "fast typing test",
     "typing test English",
     "typing challenge",
     "improve typing speed",
-    "keyboard typing test",
   ],
   icons: {
     icon: [
@@ -80,6 +79,8 @@ export const metadata: Metadata = {
 };
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+// set this to "1" to enable analytics in dev for debugging: NEXT_PUBLIC_DEBUG_ANALYTICS=1
+const DEBUG_ANALYTICS = process.env.NEXT_PUBLIC_DEBUG_ANALYTICS === "1";
 
 export default function RootLayout({
   children,
@@ -87,6 +88,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const isProd = process.env.NODE_ENV === "production";
+
+  // Only mount analytics in production OR when debug flag is enabled
+  const shouldMountAnalytics = Boolean(GA_ID) && (isProd || DEBUG_ANALYTICS);
 
   return (
     <html
@@ -97,13 +101,10 @@ export default function RootLayout({
       <head>
         {/* Preload important images */}
         <link rel="preload" href="/logo.png" as="image" />
-        <link
-          rel="preload"
-          href="/fonts/YourFont.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
+
+        {/* NOTE: Removed preload for /fonts/YourFont.woff2 to avoid 404 when file is missing.
+            If you use a local font, put it in /public/fonts and add an @font-face in globals.css
+            or use next/font/local for safer loading. */}
 
         {/* Favicons (explicit) */}
         <link rel="icon" href="/favicon.ico" />
@@ -151,8 +152,8 @@ export default function RootLayout({
             the script when the browser is idle or on load. */}
       </head>
 
-      {/* NOTE: removed overflow-hidden; use overflow-auto so pages can scroll */}
-      <body className="font-sans overflow-hidden">
+      {/* Allow page scrolling (was overflow-hidden) */}
+      <body className="font-sans overflow-auto">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -167,7 +168,10 @@ export default function RootLayout({
                 {/* Client-side page view tracking for SPA navigation.
                     AnalyticsClient will defer the actual gtag.js injection to
                     avoid blocking the initial render. */}
-                {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
+                {shouldMountAnalytics ? (
+                  // debug mode enabled when DEBUG_ANALYTICS is true
+                  <AnalyticsClient gaId={GA_ID} debugMode={DEBUG_ANALYTICS} />
+                ) : null}
               </Suspense>
             </ReduxProvider>
           </Providers>
