@@ -3,7 +3,7 @@ import type React from "react";
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThunderLoader } from "@/components/ThunderLogo";
@@ -78,8 +78,8 @@ export const metadata: Metadata = {
   },
 };
 
+// Env vars
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-// set this to "1" to enable analytics in dev for debugging: NEXT_PUBLIC_DEBUG_ANALYTICS=1
 const DEBUG_ANALYTICS = process.env.NEXT_PUBLIC_DEBUG_ANALYTICS === "1";
 
 export default function RootLayout({
@@ -92,6 +92,12 @@ export default function RootLayout({
   // Only mount analytics in production OR when debug flag is enabled
   const shouldMountAnalytics = Boolean(GA_ID) && (isProd || DEBUG_ANALYTICS);
 
+  if (typeof window !== "undefined") {
+    // 👇 Log GA_ID to console in browser (helps verify env on production)
+    console.log("[RootLayout] GA_ID =", GA_ID || "undefined");
+    console.log("[RootLayout] NODE_ENV =", process.env.NODE_ENV);
+  }
+
   return (
     <html
       lang="en"
@@ -102,11 +108,7 @@ export default function RootLayout({
         {/* Preload important images */}
         <link rel="preload" href="/logo.png" as="image" />
 
-        {/* NOTE: Removed preload for /fonts/YourFont.woff2 to avoid 404 when file is missing.
-            If you use a local font, put it in /public/fonts and add an @font-face in globals.css
-            or use next/font/local for safer loading. */}
-
-        {/* Favicons (explicit) */}
+        {/* Favicons */}
         <link rel="icon" href="/favicon.ico" />
         <link
           rel="icon"
@@ -144,15 +146,8 @@ export default function RootLayout({
             }),
           }}
         />
-
-        {/* NOTE:
-            Previously gtag/gtm scripts were placed here and executed as part of
-            server-rendered HTML. To reduce blocking and improve CWV we defer
-            injection to a client component (AnalyticsClient) which will load
-            the script when the browser is idle or on load. */}
       </head>
 
-      {/* Allow page scrolling (was overflow-hidden) */}
       <body className="font-sans overflow-auto">
         <ThemeProvider
           attribute="class"
@@ -165,12 +160,11 @@ export default function RootLayout({
               <Suspense fallback={<ThunderLoader />}>
                 {children}
 
-                {/* Client-side page view tracking for SPA navigation.
-                    AnalyticsClient will defer the actual gtag.js injection to
-                    avoid blocking the initial render. */}
                 {shouldMountAnalytics ? (
-                  // debug mode enabled when DEBUG_ANALYTICS is true
-                  <AnalyticsClient gaId={GA_ID} debugMode={DEBUG_ANALYTICS} />
+                  <AnalyticsClient
+                    gaId={GA_ID}
+                    debugMode={!isProd && DEBUG_ANALYTICS}
+                  />
                 ) : null}
               </Suspense>
             </ReduxProvider>

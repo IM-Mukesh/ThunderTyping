@@ -1,4 +1,3 @@
-// components/AnalyticsClient.tsx
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -6,16 +5,7 @@ import { usePathname } from "next/navigation";
 
 type Props = {
   gaId?: string;
-  /**
-   * If true, will only load analytics after explicit user consent stored in
-   * localStorage as "analytics-consent" === "granted". Default: false.
-   */
   requireConsent?: boolean;
-  /**
-   * Enables detailed debug logging and allows loading in development when true.
-   * You can set via env: NEXT_PUBLIC_DEBUG_ANALYTICS=1 and pass debugMode={true}
-   * from layout.tsx (the updated layout does that automatically when env=1).
-   */
   debugMode?: boolean;
 };
 
@@ -34,8 +24,6 @@ export default function AnalyticsClient({
   const pathname = usePathname();
   const loadedRef = useRef(false);
 
-  const isClient = typeof window !== "undefined";
-
   const hasConsent = (): boolean => {
     if (!requireConsent) return true;
     try {
@@ -45,156 +33,90 @@ export default function AnalyticsClient({
     }
   };
 
+  // Load GA script once
   useEffect(() => {
     if (!gaId) {
-      if (debugMode) console.warn("[AnalyticsClient] no gaId provided");
-      return;
-    }
-    if (!isClient) {
-      if (debugMode) console.warn("[AnalyticsClient] not running on client");
+      if (debugMode) console.warn("[AnalyticsClient] No GA ID provided");
       return;
     }
     if (loadedRef.current) {
-      if (debugMode) console.debug("[AnalyticsClient] already loaded");
+      if (debugMode) console.debug("[AnalyticsClient] Already loaded");
       return;
     }
     if (!hasConsent()) {
-      if (debugMode) console.warn("[AnalyticsClient] consent not granted");
+      if (debugMode) console.warn("[AnalyticsClient] Consent not granted");
       return;
     }
 
-    const w = window as any;
+    if (debugMode) console.info("[AnalyticsClient] Injecting GA for:", gaId);
 
-    function initGtag() {
-      if (w.gtag) {
-        loadedRef.current = true;
-        if (debugMode) console.info("[AnalyticsClient] gtag already present");
-        return;
-      }
+    // Create script
+    const script = document.createElement("script");
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+    script.async = true;
+    script.onload = () => {
+      if (debugMode) console.info("[AnalyticsClient] gtag.js loaded");
+    };
+    script.onerror = () => {
+      if (debugMode) console.error("[AnalyticsClient] Failed to load gtag.js");
+    };
+    document.head.appendChild(script);
 
-      if (debugMode)
-        console.info("[AnalyticsClient] injecting gtag.js for", gaId);
-
-      const script = document.createElement("script");
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
-      script.async = true;
-      script.onload = () => {
-        if (debugMode)
-          console.info("[AnalyticsClient] gtag.js loaded (onload)");
-      };
-      script.onerror = () => {
-        if (debugMode)
-          console.error("[AnalyticsClient] failed to load gtag.js");
-      };
-      document.head.appendChild(script);
-
-      // init dataLayer / gtag stub
-      w.dataLayer = w.dataLayer || [];
-      function gtag(...args: any[]) {
-        w.dataLayer.push(args);
-        if (debugMode)
-          console.debug("[AnalyticsClient] pushed to dataLayer:", args);
-      }
-      w.gtag = gtag;
-
-      // initial config records first page view
-      try {
-        w.gtag("js", new Date());
-        w.gtag("config", gaId, { page_path: w.location.pathname });
-        if (debugMode) console.info("[AnalyticsClient] initial config pushed");
-      } catch (e) {
-        if (debugMode)
-          console.error("[AnalyticsClient] error during initial gtag calls", e);
-      }
-
-      loadedRef.current = true;
+    // Init dataLayer / gtag
+    window.dataLayer = window.dataLayer || [];
+    function gtag(...args: any[]) {
+      window.dataLayer!.push(args);
+      if (debugMode) console.debug("[AnalyticsClient] gtag push:", args);
     }
+    window.gtag = gtag;
 
     try {
-      // Use requestIdleCallback if available (non-standard but safe cast used)
-      if (typeof (window as any).requestIdleCallback === "function") {
-        (window as any).requestIdleCallback(
-          () => {
-            try {
-              initGtag();
-            } catch (e) {
-              if (debugMode) console.error(e);
-            }
-          },
-          { timeout: 2000 }
-        );
-      } else {
-        // fallback: wait for load event to avoid interfering with LCP
-        const onLoad = () => {
-          try {
-            initGtag();
-          } catch (e) {
-            if (debugMode) console.error(e);
-          }
-          window.removeEventListener("load", onLoad);
-        };
-        window.addEventListener("load", onLoad);
-      }
-    } catch (err) {
+      window.gtag("js", new Date());
+      window.gtag("config", gaId, { page_path: window.location.pathname });
+      if (debugMode) console.info("[AnalyticsClient] Initial config pushed");
+    } catch (e) {
       if (debugMode)
-        console.warn(
-          "[AnalyticsClient] requestIdleCallback failed, using load event",
-          err
-        );
-      const onLoad = () => {
-        try {
-          initGtag();
-        } catch (e) {
-          if (debugMode) console.error(e);
-        }
-        window.removeEventListener("load", onLoad);
-      };
-      window.addEventListener("load", onLoad);
+        console.error("[AnalyticsClient] Error during initial gtag call", e);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    loadedRef.current = true;
   }, [gaId, requireConsent, debugMode]);
 
-  // Send page view / config on route change
+  // Track route changes
   useEffect(() => {
     if (!gaId) return;
-    if (!isClient) return;
-    if (requireConsent && !hasConsent()) {
+    if (!hasConsent()) {
       if (debugMode)
-        console.debug(
-          "[AnalyticsClient] route change ignored, consent missing"
-        );
+        console.debug("[AnalyticsClient] Route ignored, no consent");
       return;
     }
 
-    const w = window as any;
-
-    if (w.gtag) {
+    if (window.gtag) {
       try {
-        w.gtag("config", gaId, { page_path: pathname });
+        window.gtag("config", gaId, { page_path: pathname });
         if (debugMode)
-          console.debug("[AnalyticsClient] route config pushed", pathname);
+          console.debug("[AnalyticsClient] Route config pushed", pathname);
       } catch (e) {
-        if (debugMode) console.error("[AnalyticsClient] route config error", e);
+        if (debugMode) console.error("[AnalyticsClient] Route config error", e);
       }
     } else {
-      w.dataLayer = w.dataLayer || [];
+      window.dataLayer = window.dataLayer || [];
       try {
-        w.dataLayer.push({
+        window.dataLayer.push({
           event: "page_view",
           page_path: pathname,
         });
         if (debugMode)
           console.debug(
-            "[AnalyticsClient] dataLayer page_view pushed",
+            "[AnalyticsClient] Fallback page_view pushed",
             pathname
           );
       } catch (e) {
         if (debugMode)
-          console.error("[AnalyticsClient] dataLayer push error", e);
+          console.error("[AnalyticsClient] Fallback push error", e);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, gaId, requireConsent]);
+  }, [pathname, gaId, requireConsent, debugMode]);
 
   return null;
 }
