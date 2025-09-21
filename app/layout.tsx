@@ -3,7 +3,8 @@ import type React from "react";
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
+import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThunderLoader } from "@/components/ThunderLogo";
@@ -78,9 +79,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Env vars
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
-const DEBUG_ANALYTICS = process.env.NEXT_PUBLIC_DEBUG_ANALYTICS === "1";
 
 export default function RootLayout({
   children,
@@ -88,15 +87,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const isProd = process.env.NODE_ENV === "production";
-
-  // Only mount analytics in production OR when debug flag is enabled
-  const shouldMountAnalytics = Boolean(GA_ID) && (isProd || DEBUG_ANALYTICS);
-
-  if (typeof window !== "undefined") {
-    // 👇 Log GA_ID to console in browser (helps verify env on production)
-    console.log("[RootLayout] GA_ID =", GA_ID || "undefined");
-    console.log("[RootLayout] NODE_ENV =", process.env.NODE_ENV);
-  }
 
   return (
     <html
@@ -107,8 +97,15 @@ export default function RootLayout({
       <head>
         {/* Preload important images */}
         <link rel="preload" href="/logo.png" as="image" />
+        <link
+          rel="preload"
+          href="/fonts/YourFont.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
 
-        {/* Favicons */}
+        {/* Favicons (explicit) */}
         <link rel="icon" href="/favicon.ico" />
         <link
           rel="icon"
@@ -146,9 +143,32 @@ export default function RootLayout({
             }),
           }}
         />
+
+        {/* Google Analytics - only include in production and when GA_ID is present */}
+        {isProd && GA_ID ? (
+          <>
+            {/* Preconnect to GTM for slightly faster loading */}
+            <link rel="preconnect" href="https://www.googletagmanager.com" />
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="gtag-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}', {
+                  page_path: window.location.pathname,
+                });
+              `}
+            </Script>
+          </>
+        ) : null}
       </head>
 
-      <body className="font-sans overflow-auto">
+      {/* NOTE: removed overflow-hidden; use overflow-auto so pages can scroll */}
+      <body className="font-sans overflow-hidden">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -159,13 +179,8 @@ export default function RootLayout({
             <ReduxProvider>
               <Suspense fallback={<ThunderLoader />}>
                 {children}
-
-                {shouldMountAnalytics ? (
-                  <AnalyticsClient
-                    gaId={GA_ID}
-                    debugMode={!isProd && DEBUG_ANALYTICS}
-                  />
-                ) : null}
+                {/* Client-side page view tracking for SPA navigation */}
+                {isProd && GA_ID ? <AnalyticsClient gaId={GA_ID} /> : null}
               </Suspense>
             </ReduxProvider>
           </Providers>
